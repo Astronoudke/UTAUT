@@ -1,0 +1,18 @@
+<!-- Het weergeven van de bestaande studies van de gebruiker. -->
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block content %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_index.css') }}">
+    <!-- De menu welke de bestaande studies van de gebruiker weergeeft. -->
+    <div class="content-container">
+        <div class="vertical-menu">
+            {% for study in studies %}
+                <a href="{{ url_for('new_study.utaut', study_code=study.code) }}"> {{ study.name }}</a>
+            {% endfor %}
+        </div>
+        <button type="button" onclick="window.location.href='{{ url_for('main.index') }}';">
+            Go back to Main Menu
+        </button>
+    </div>
+{% endblock %}
