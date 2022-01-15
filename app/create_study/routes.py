@@ -39,7 +39,7 @@ def new_study():
         current_user.link(new_study)
         db.session.commit()
 
-        return redirect(url_for('create_study.edit_model', study_code=new_study.code))
+        return redirect(url_for('create_study.choose_model', study_code=new_study.code))
     return render_template("create_study/new_study.html", title='New Study', form=form)
 
 
@@ -115,8 +115,38 @@ def edit_model(study_code):
     study = Study.query.filter_by(code=study_code).first()
 
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
-    core_variables = [corevariable for corevariable in model.linked_corevariables]
+    corevariables = [corevariable for corevariable in model.linked_corevariables]
     relations = [relation for relation in Relation.query.filter_by(model_id=model.id)]
 
     return render_template("create_study/edit_model.html", title='Edit model', study=study, model=model,
-                           core_variables=core_variables, relations=relations)
+                           corevariables=corevariables, relations=relations)
+
+
+@bp.route('/utaut/new_corevariable/<study_code>', methods=['GET', 'POST'])
+@login_required
+def new_corevariable(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    # De Form voor het aanmaken van een nieuwe kernvariabele.
+    study = Study.query.filter_by(code=study_code).first()
+    form = CreateNewCoreVariableForm()
+
+    # Als de gebruiker aangeeft een nieuwe kernvariabele te willen aanmaken.
+    if form.validate_on_submit():
+        # De kernvariabele toegevoegd aan de database.
+        new_corevariable = CoreVariable(name=form.name_corevariable.data,
+                                        abbreviation=form.abbreviation_corevariable.data,
+                                        description=form.description_corevariable.data,
+                                        user_id=current_user.id)
+        db.session.add(new_corevariable)
+        db.session.commit()
+
+        # De kernvariabele wordt binnen het onderzoeksmodel geplaatst.
+        model = UTAUTmodel.query.filter_by(id=study.model_id).first()
+        new_corevariable.link(model)
+        db.session.commit()
+
+        return redirect(url_for('new_study.utaut', study_code=study_code))
+
+    return render_template("new_study/new_corevariable.html", title='New Core Variable', form=form)

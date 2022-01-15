@@ -120,6 +120,9 @@ class CoreVariable(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
+    def __repr__(self):
+        return '<Core variable {}>'.format(self.code)
+
 
 class Relation(db.Model):
     id = db.Column(db.Integer, primary_key=True)

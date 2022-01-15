@@ -19,7 +19,7 @@
             <th>Abbreviation</th>
             <th>Name</th>
           </tr>
-          {% for core_variable in core_variables %}
+          {% for corevariable in corevariables %}
             {% include 'new_study/_corevariable_utaut.html' %}
           {% endfor %}
         </table>
@@ -35,7 +35,7 @@
                 </div>
             </div>
         </div>
-        <button type="button" onclick="window.location.href='{{ url_for('new_study.new_core_variable', study_code=study.code) }}';">
+        <button type="button" onclick="window.location.href='{{ url_for('create_study.new_corevariable', study_code=study.code) }}';">
             Create New Variable
         </button>
     </div>
@@ -51,10 +51,6 @@
     </div>
     <button type="button" onclick="window.location.href='{{ url_for('new_study.new_relation', study_code=study.code) }}';">
         Create New Relation
-    </button>
-
-    <button type="button" onclick="window.location.href='{{ url_for('new_study.pre_questionnaire', study_code=study.code) }}';">
-        Go To Questionnaire
     </button>
 
 {% endblock %}
