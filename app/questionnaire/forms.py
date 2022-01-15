@@ -16,10 +16,6 @@ def QuestionnaireForm(questions, *args, **kwargs):
     return TestForm(*args, **kwargs)
 
 
-
-
-
-
 # De Form welke gebruikt wordt voor enkel opslaan en verwijzen.
 class SubmitForm(FlaskForm):
     submit = SubmitField('Submit')

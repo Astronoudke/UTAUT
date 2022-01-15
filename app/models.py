@@ -11,21 +11,23 @@ from wtforms import StringField, SelectField, RadioField
 from wtforms.validators import DataRequired
 from app import db, login
 
+
 study_user = db.Table('study_user',
                       db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
                       db.Column('study_id', db.Integer, db.ForeignKey('study.id'))
                       )
 
+
 researchmodel_corevariable = db.Table('researchmodel_corevariable',
-                                      db.Column('researchmodel_id', db.Integer, db.ForeignKey('researchmodel.id')),
-                                      db.Column('corevariable_id', db.Integer, db.ForeignKey('corevariable.id'))
+                                      db.Column('researchmodel_id', db.Integer, db.ForeignKey('research_model.id')),
+                                      db.Column('corevariable_id', db.Integer, db.ForeignKey('core_variable.id'))
                                       )
+
 
 questionnaire_demographic = db.Table('questionnaire_demographic',
                                      db.Column('questionnaire_id', db.Integer, db.ForeignKey('questionnaire.id')),
                                      db.Column('demographic_id', db.Integer, db.ForeignKey('demographic.id'))
                                      )
-
 
 
 class User(UserMixin, db.Model):
@@ -72,6 +74,10 @@ class User(UserMixin, db.Model):
             return
         return User.query.get(id)
 
+@login.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
 
 class Study(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -84,6 +90,7 @@ class Study(db.Model):
     stage_3 = db.Column(db.Boolean, default=False)
     stage_completed = db.Column(db.Boolean, default=False)
 
+    researchmodel_id = db.Column(db.Integer, db.ForeignKey('research_model.id'))
     linked_users = db.relationship('User', secondary=study_user, backref=db.backref('researchers'), lazy='dynamic')
 
     def __repr__(self):
@@ -98,7 +105,9 @@ class Study(db.Model):
 
 class ResearchModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200))
 
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     linked_corevariables = db.relationship('CoreVariable', secondary=researchmodel_corevariable,
                                            backref=db.backref('corevariables'), lazy='dynamic')
 
@@ -109,10 +118,12 @@ class CoreVariable(db.Model):
     abbreviation = db.Column(db.String(4))
     description = db.Column(db.String(800))
 
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
 
 class Relation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    model_id = db.Column(db.Integer, db.ForeignKey('utau_tmodel.id'))
+    model_id = db.Column(db.Integer, db.ForeignKey('research_model.id'))
     influencer_id = db.Column(db.Integer, db.ForeignKey('core_variable.id'))
     influenced_id = db.Column(db.Integer, db.ForeignKey('core_variable.id'))
 
@@ -132,7 +143,7 @@ class Questionnaire(db.Model):
                                             lazy='dynamic')
 
     def __repr__(self):
-        return '<Questionnaire {}>'.format(self.name)
+        return '<Questionnaire {}>'.format(self.code)
 
     def total_completed_cases(self):
         total = Case.query.filter_by(questionnaire_id=self.id, completed=True).count()
@@ -141,12 +152,15 @@ class Questionnaire(db.Model):
 
 class QuestionGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
     questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'))
     corevariable_id = db.Column(db.Integer, db.ForeignKey('core_variable.id'))
 
     def __repr__(self):
-        return '<Question group {}>'.format(self.title)
+        return '<Question group {}>'.format(self.return_corevariable_name)
+
+    def return_corevariable_name(self):
+        corevariable_name = CoreVariable.query.filter_by(id=self.corevariable_id).first().name
+        return corevariable_name
 
 
 class Demographic(db.Model):

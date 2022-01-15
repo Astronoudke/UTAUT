@@ -25,3 +25,8 @@ class EditProfileForm(FlaskForm):
 class CreateNewQuestionUser(FlaskForm):
     name_question = StringField('Question', validators=[DataRequired(), Length(min=0, max=120)])
     submit = SubmitField('Add question')
+
+
+# De Form welke gebruikt wordt voor enkel opslaan en verwijzen.
+class EmptyForm(FlaskForm):
+    submit = SubmitField('Submit')

@@ -7,8 +7,7 @@ from app import db
 from app.questionnaire import bp
 from app.questionnaire.forms import QuestionnaireForm, SubmitForm, StartQuestionnaireForm
 from app.questionnaire.functions import reverse_value
-from app.models import User, Study, CoreVariable, Questionnaire, Case, \
-    QuestionGroup, Question, QuestionAnswer, DemographicAnswer, Demographic
+from app.models import User, Study
 
 
 @bp.route('/clear_session/<study_code>', methods=['GET', 'POST'])
@@ -110,7 +109,7 @@ def part(study_code, part_number):
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
-    questionlist = session["questionlist_questiongroups"][int(questionlist_number)]
+    questionlist = session["questionlist_questiongroups"][int(part_number)]
     questions = [question for question in Question.query.filter_by(questiongroup_id=questionlist.id)]
 
     # Een dictionary met de vraag als key en een bijbehorende Field om in te vullen als waarde (questions_dict).
@@ -121,7 +120,7 @@ def part(study_code, part_number):
     form = QuestionnaireForm(questions_dict)
 
     # De volgende vragengroepnummer voor de verwijzing zodra de gebruiker dit gedeelte van de vragenlijst heeft ingevuld
-    next_questionlist_number = int(questionlist_number) + 1
+    next_part_number = int(part_number) + 1
 
     # Als de gebruiker aangeeft dit gedeelte van de vragenlijst ingevuld te hebben.
     if form.validate_on_submit():
@@ -153,12 +152,12 @@ def part(study_code, part_number):
                         session["answers"].append(answer)
         # Naar het volgende onderdeel van de vragenlijst gaan.
         return redirect(
-            url_for('main.questionlist', study_code=study_code, questionlist_number=next_questionlist_number))
+            url_for('main.questionlist', study_code=study_code, next_part_number=next_part_number))
 
     return render_template('questionnaire/part.html',
-                           title="Questionlist {}: {}".format(str(questionlist_number), study.name),
-                           study=study, questionlist_number=questionlist_number, questions=questions,
-                           questionlist=questionlist, next_questionlist_number=next_questionlist_number, form=form)
+                           title="Questionlist {}: {}".format(str(part_number), study.name),
+                           study=study, questionlist_number=part_number, questions=questions,
+                           questionlist=questionlist, next_part_number=next_part_number, form=form)
 
 
 @bp.route('/g/e/<study_code>', methods=['GET', 'POST'])

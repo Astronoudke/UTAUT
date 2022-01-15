@@ -43,13 +43,19 @@ def create_app(config_class=Config):
     mysql.init_app(app)
 
     from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(auth_bp)
 
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 
-    from app.new_study import bp as new_study_bp
-    app.register_blueprint(new_study_bp, url_prefix='/new_study')
+    from app.create_study import bp as create_study_bp
+    app.register_blueprint(create_study_bp)
+
+    from app.current_studies import bp as current_studies_bp
+    app.register_blueprint(current_studies_bp)
+
+    from app.questionnaire import bp as questionnaire_bp
+    app.register_blueprint(questionnaire_bp)
 
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:

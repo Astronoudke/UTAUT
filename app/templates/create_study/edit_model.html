@@ -1,0 +1,60 @@
+<!-- De pagina waarbinnen het onderzoeksmodel aangepast kan worden. -->
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block app_content %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_edit_model.css') }}">
+    <div class="title-box">
+        <h1 class="title-header"> {{ study.name }}</h1>
+    </div>
+    <!-- De optie om het onderzoek zelf aan te passen. -->
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
+        Edit Study
+    </button>
+    <!-- De tabel met alle kernvariabelen. -->
+    <div id="table-corevariables">
+        <h1 class="table-header">Core Variables</h1>
+        <table class="table-class">
+          <tr>
+            <th>Abbreviation</th>
+            <th>Name</th>
+          </tr>
+          {% for core_variable in core_variables %}
+            {% include 'new_study/_corevariable_utaut.html' %}
+          {% endfor %}
+        </table>
+    </div>
+
+    <!-- Een div welke de optie bevat om een kernvariabele toe te voegen vanuit een selectiemenu of er handmatig een toe
+     te voegen. -->
+    <div class="popuptext">
+        <div class="form-container">
+            <div class="row">
+                <div class="col-md-4">
+                    {{ render_form(form_add_variable) }}
+                </div>
+            </div>
+        </div>
+        <button type="button" onclick="window.location.href='{{ url_for('new_study.new_core_variable', study_code=study.code) }}';">
+            Create New Variable
+        </button>
+    </div>
+
+    <!-- De tabel met alle relaties. -->
+    <div id="table-relations">
+        <h1 class="table-header">Relations</h1>
+        <table class="table-class">
+            {% for relation in relations %}
+                {% include 'new_study/_relation.html' %}
+            {% endfor %}
+        </table>
+    </div>
+    <button type="button" onclick="window.location.href='{{ url_for('new_study.new_relation', study_code=study.code) }}';">
+        Create New Relation
+    </button>
+
+    <button type="button" onclick="window.location.href='{{ url_for('new_study.pre_questionnaire', study_code=study.code) }}';">
+        Go To Questionnaire
+    </button>
+
+{% endblock %}

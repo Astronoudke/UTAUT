@@ -5,18 +5,8 @@ from flask_login import current_user, login_required
 from wtforms import RadioField
 from app import db
 from app.main import bp
-from app.main.forms import EditProfileForm, EmptyForm, CreateNewQuestionUser, GoToStartQuestionlist, \
-    CreateNewDemographicForm, DynamicTestForm
-from app.main.functions import reverse_value
-from app.models import User, Study, CoreVariable, Questionnaire, StandardQuestion, Case, \
-    QuestionGroup, Question, Answer, DemographicAnswer, StandardDemographic, Demographic
-
-
-@bp.before_app_request
-def before_request():
-    if current_user.is_authenticated:
-        current_user.last_seen = datetime.utcnow()
-        db.session.commit()
+from app.main.forms import EditProfileForm, EmptyForm
+from app.models import User
 
 
 @bp.route('/', methods=['GET', 'POST'])
