@@ -20,7 +20,20 @@
             <th>Name</th>
           </tr>
           {% for corevariable in corevariables %}
-            {% include 'new_study/_corevariable_utaut.html' %}
+            <tr>
+                <td>
+                    {{ corevariable.abbreviation }}
+                </td>
+                <td>
+                    {{ corevariable.name }}
+                </td>
+                <td>
+                    <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_corevariable',
+                    study_code=study.code, corevariable_id=corevariable.id) }}';">
+                        Delete Variable
+                    </button>
+                </td>
+            </tr>
           {% endfor %}
         </table>
     </div>
@@ -28,15 +41,8 @@
     <!-- Een div welke de optie bevat om een kernvariabele toe te voegen vanuit een selectiemenu of er handmatig een toe
      te voegen. -->
     <div class="popuptext">
-        <div class="form-container">
-            <div class="row">
-                <div class="col-md-4">
-                    {{ render_form(form_add_variable) }}
-                </div>
-            </div>
-        </div>
         <button type="button" onclick="window.location.href='{{ url_for('create_study.new_corevariable', study_code=study.code) }}';">
-            Create New Variable
+            Create New Core Variable
         </button>
     </div>
 
@@ -45,11 +51,21 @@
         <h1 class="table-header">Relations</h1>
         <table class="table-class">
             {% for relation in relations %}
-                {% include 'new_study/_relation.html' %}
+                <tr>
+                    <td>
+                        {{ relation.return_relation() }}
+                    </td>
+                    <td>
+                        <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_relation',
+                        study_code=study_code, id_relation=relation.id) }}';">
+                            Delete Relation
+                        </button>
+                    </td>
+                </tr>
             {% endfor %}
         </table>
     </div>
-    <button type="button" onclick="window.location.href='{{ url_for('new_study.new_relation', study_code=study.code) }}';">
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.new_relation', study_code=study.code) }}';">
         Create New Relation
     </button>
 

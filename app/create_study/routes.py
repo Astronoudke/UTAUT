@@ -9,11 +9,11 @@ from plspm.scheme import Scheme
 from plspm.mode import Mode
 from app import db
 from app.create_study import bp
-from app.create_study.forms import CreateNewStudyForm, EditStudyForm
+from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
-from app.models import Study, CoreVariable, Relation, ResearchModel
+from app.models import User, Study, CoreVariable, Relation, ResearchModel
 
 
 #############################################################################################################
@@ -61,7 +61,7 @@ def edit_study(study_code):
         study.technology = form.technology_of_study.data
         db.session.commit()
         flash('Your changes have been saved.')
-        return redirect(url_for('create_study.utaut', study_code=study.code))
+        return redirect(url_for('create_study.edit_model', study_code=study.code))
     # Als niks is ingegeven binnen de Form worden geen aanpassingen gemaakt (en dus gebruikgemaakt van de eigen
     # onderzoeksgegevens.
     elif request.method == 'GET':
@@ -122,14 +122,45 @@ def edit_model(study_code):
                            corevariables=corevariables, relations=relations)
 
 
-@bp.route('/utaut/new_corevariable/<study_code>', methods=['GET', 'POST'])
+@bp.route('/edit_model/new_corevariable/<study_code>', methods=['GET', 'POST'])
 @login_required
 def new_corevariable(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
     security_and_studycheck(study_code)
 
-    # De Form voor het aanmaken van een nieuwe kernvariabele.
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    corevariables = [corevariable for corevariable in CoreVariable.query.filter_by(user_id=current_user.id)]
+    amount_of_corevariables = len(corevariables)
+
+    return render_template("create_study/new_corevariable.html", title='New Core Variable', study=study, model=model,
+                           corevariables=corevariables, amount_of_corevariables=amount_of_corevariables)
+
+
+@bp.route('/add_corevariable/<study_code>/<corevariable_id>', methods=['GET', 'POST'])
+@login_required
+def add_corevariable(study_code, corevariable_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+
+    corevariable.link(model)
+    db.session.commit()
+
+    return redirect(url_for('create_study.edit_model', study_code=study_code))
+
+
+@bp.route('/edit_model/create_new_corevariable/<study_code>', methods=['GET', 'POST'])
+@login_required
+def create_new_corevariable(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    # De Form voor het aanmaken van een nieuwe kernvariabele.
     form = CreateNewCoreVariableForm()
 
     # Als de gebruiker aangeeft een nieuwe kernvariabele te willen aanmaken.
@@ -143,10 +174,92 @@ def new_corevariable(study_code):
         db.session.commit()
 
         # De kernvariabele wordt binnen het onderzoeksmodel geplaatst.
-        model = UTAUTmodel.query.filter_by(id=study.model_id).first()
+        model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
         new_corevariable.link(model)
         db.session.commit()
 
-        return redirect(url_for('new_study.utaut', study_code=study_code))
+        return redirect(url_for('create_study.edit_model', study_code=study_code))
 
-    return render_template("new_study/new_corevariable.html", title='New Core Variable', form=form)
+    return render_template("create_study/create_new_corevariable.html", title='Create core variable', study=study,
+                           form=form)
+
+
+@bp.route('/remove_corevariable/<study_code>/<corevariable_id>', methods=['GET', 'POST'])
+@login_required
+def remove_corevariable(study_code, corevariable_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    # questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+
+    # De kernvariabele uit het onderzoeksmodel halen en alle bijbehorende relaties verwijderen.
+    corevariable.unlink(model)
+    db.session.commit()
+    Relation.query.filter_by(influencer_id=corevariable.id, model_id=model.id).delete()
+    db.session.commit()
+    Relation.query.filter_by(influenced_id=corevariable.id, model_id=model.id).delete()
+    db.session.commit()
+
+    # Als de kernvariabele al een vragenlijstgroep had binnen de vragenlijst deze en de bijbehorende vragen verwijderen.
+    #if questionnaire:
+    #    questiongroup = QuestionGroup.query.filter_by(title=corevariable.name,
+    #                                                  questionnaire_id=questionnaire.id).first()
+    #    Question.query.filter_by(questiongroup_id=questiongroup.id).delete()
+    #    db.session.commit()
+    #    QuestionGroup.query.filter_by(title=corevariable.name, questionnaire_id=questionnaire.id).delete()
+    #    db.session.commit()
+
+    return redirect(url_for('create_study.edit_model', study_code=study_code))
+
+
+@bp.route('/utaut/new_relation/<study_code>', methods=['GET', 'POST'])
+@login_required
+def new_relation(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    # De Form voor het aanmaken van een nieuwe relatie.
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    form = CreateNewRelationForm()
+    form.abbreviation_influencer.choices = [(corevariable.id, corevariable.name) for corevariable in
+                                            model.linked_corevariables]
+    form.abbreviation_influenced.choices = [(corevariable.id, corevariable.name) for corevariable in
+                                            model.linked_corevariables]
+
+    # Als de gebruiker aangeeft een nieuwe relatie aan te willen maken.
+    if form.validate_on_submit():
+        # De ID van de beïnvloedende kernvariabele bepalen.
+        id_influencer = [corevariable for corevariable in model.linked_corevariables if corevariable.abbreviation ==
+                         form.abbreviation_influencer.data][0].id
+        # De ID van de beïnvloede kernvariabele bepalen.
+        id_influenced = [corevariable for corevariable in model.linked_corevariables if corevariable.abbreviation ==
+                         form.abbreviation_influenced.data][0].id
+
+        # De relatie aanmaken tussen de twee relevante kernvariabelen.
+        newrelation = Relation(model_id=model.id,
+                               influencer_id=id_influencer,
+                               influenced_id=id_influenced)
+        db.session.add(newrelation)
+        db.session.commit()
+
+        return redirect(url_for('create_study.edit_model', study_code=study_code))
+
+    return render_template("create_study/new_relation.html", title='Create New Relation', form=form)
+
+
+@bp.route('/remove_relation/<study_code>/<id_relation>', methods=['GET', 'POST'])
+@login_required
+def remove_relation(study_code, id_relation):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    # Het verwijderen van de relevante relatie.
+    Relation.query.filter_by(id=id_relation).delete()
+    db.session.commit()
+
+    return redirect(url_for('create_study.edit_model', study_code=study_code))

@@ -8,7 +8,7 @@
     <div class="content-container">
         <div class="vertical-menu">
             {% for study in studies %}
-                <a href="{{ url_for('create_study.choose_model', study_code=study.code) }}"> {{ study.name }}</a>
+                <a href="{{ url_for('create_study.edit_model', study_code=study.code) }}"> {{ study.name }}</a>
             {% endfor %}
         </div>
         <button type="button" onclick="window.location.href='{{ url_for('main.index') }}';">

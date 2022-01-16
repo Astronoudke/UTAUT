@@ -36,3 +36,19 @@ class EditStudyForm(FlaskForm):
         self.original_name = original_name
         self.original_description = original_description
         self.original_technology = original_technology
+
+
+class CreateNewCoreVariableForm(FlaskForm):
+    name_corevariable = StringField('Name of the core variable', validators=[DataRequired(), Length(min=0, max=50)])
+    abbreviation_corevariable = StringField('The abbreviation of the core variable', validators=[DataRequired(),
+                                                                                                 Length(min=0, max=4)])
+    description_corevariable = TextAreaField('The description of the core variable',
+                                             validators=[Length(min=0, max=800)])
+    submit = SubmitField('Create Core Variable')
+
+
+class CreateNewRelationForm(FlaskForm):
+    abbreviation_influencer = SelectField(u'Influencer (relation goes from)') #StringField('The abbreviation of the influencer',
+                                          #validators=[DataRequired(), Length(min=0, max=4)])
+    abbreviation_influenced = SelectField(u'Influenced (relation goes to)')
+    submit = SubmitField('Create Relation')

@@ -11,7 +11,12 @@ def security_and_studycheck(study_code):
         return redirect(url_for('main.not_authorized'))
 
     # Checken hoe ver de studie is
+    if study.stage_1:
+        if study.researchmodel_id is None:
+            return redirect(url_for('create_study.choose_model', study_code=study_code))
+        else:
+            return redirect(url_for('create_study.edit_model', study_code=study_code))
     if study.stage_2:
-        return redirect(url_for('new_study.study_underway', name_study=study.name, study_code=study_code))
+        return redirect(url_for('create_study.study_underway', name_study=study.name, study_code=study_code))
     if study.stage_3:
-        return redirect(url_for('new_study.summary_results', study_code=study_code))
+        return redirect(url_for('create_study.summary_results', study_code=study_code))

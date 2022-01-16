@@ -123,6 +123,22 @@ class CoreVariable(db.Model):
     def __repr__(self):
         return '<Core variable {}>'.format(self.code)
 
+    def return_creator(self):
+        user = User.query.filter_by(id=self.user_id).first().username
+        return user
+
+    def link(self, model):
+        if not self.is_linked(model):
+            model.linked_corevariables.append(self)
+
+    def unlink(self, model):
+        if self.is_linked(model):
+            model.linked_corevariables.remove(self)
+
+    def is_linked(self, model):
+        return model.linked_corevariables.filter(
+            researchmodel_corevariable.c.corevariable_id == self.id).count() > 0
+
 
 class Relation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
