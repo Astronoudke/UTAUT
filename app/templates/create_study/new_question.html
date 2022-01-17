@@ -14,7 +14,7 @@
             </tr>
             {% for question in questions %}
                 <tr>
-                    <th scope="row"><a href="{{ url_for('create_study.add_question', study_code=study.code, corevariable_id=corevariable.id) }}">
+                    <th scope="row"><a href="{{ url_for('create_study.add_question', study_code=study.code, corevariable_id=corevariable.id, question_id=question.id) }}">
                         {{ question.question }}</a></th>
                     <td>{{ question.return_creator() }}</td>
                 </tr>

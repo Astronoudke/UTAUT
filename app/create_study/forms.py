@@ -73,3 +73,12 @@ class CreateNewDemographicForm(FlaskForm):
 class CreateNewQuestionForm(FlaskForm):
     name_question = StringField('The Question', validators=[DataRequired(), Length(min=0, max=100)])
     submit = SubmitField('Create Question')
+
+
+class EditQuestionForm(FlaskForm):
+    name_question = StringField('The Question', validators=[DataRequired(), Length(min=0, max=100)])
+    submit = SubmitField('Edit question')
+
+    def __init__(self, original_question, *args, **kwargs):
+        super(EditQuestionForm, self).__init__(*args, **kwargs)
+        self.original_name = original_question

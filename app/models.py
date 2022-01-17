@@ -173,6 +173,7 @@ class Questionnaire(db.Model):
 
 class QuestionGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+
     questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'))
     corevariable_id = db.Column(db.Integer, db.ForeignKey('core_variable.id'))
 
