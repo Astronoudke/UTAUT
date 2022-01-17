@@ -3,7 +3,7 @@ from flask_login import current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, TextAreaField, SelectField, IntegerField, RadioField, BooleanField
 from wtforms.validators import ValidationError, DataRequired, Length
-from app.models import User
+from app.models import User, QuestionType
 
 
 class CreateNewStudyForm(FlaskForm):
@@ -48,7 +48,28 @@ class CreateNewCoreVariableForm(FlaskForm):
 
 
 class CreateNewRelationForm(FlaskForm):
-    abbreviation_influencer = SelectField(u'Influencer (relation goes from)') #StringField('The abbreviation of the influencer',
-                                          #validators=[DataRequired(), Length(min=0, max=4)])
-    abbreviation_influenced = SelectField(u'Influenced (relation goes to)')
+    name_influencer = SelectField(u'Influencer (relation goes from)')
+    name_influenced = SelectField(u'Influenced (relation goes to)')
     submit = SubmitField('Create Relation')
+
+
+class CreateNewDemographicForm(FlaskForm):
+    style_name = {'style': 'width:175%;'}
+    name_of_demographic = StringField('Name of the demographic (max. 40 characters)',
+                                      validators=[DataRequired(), Length(min=0, max=40)], render_kw=style_name)
+    style_description = {'style': 'width:250%;', "rows": 20}
+    description_of_demographic = TextAreaField('Description of the demographic',
+                                               validators=[DataRequired(), Length(min=0, max=500)],
+                                               render_kw=style_description)
+    optionality_of_demographic = BooleanField('Is the demographic optional?')
+    type_of_demographic = RadioField('The type of demographic',
+                                     choices=['open', 'multiplechoice', 'radio'],
+                                     validators=[DataRequired(), Length(min=0, max=75)])
+    choices_of_demographic = StringField('The choices that go with the question (split by comma only, only for '
+                                         'multiplechoice or radio)')
+    submit = SubmitField('Create Demographic')
+
+
+class CreateNewQuestionForm(FlaskForm):
+    name_question = StringField('The Question', validators=[DataRequired(), Length(min=0, max=100)])
+    submit = SubmitField('Create Question')

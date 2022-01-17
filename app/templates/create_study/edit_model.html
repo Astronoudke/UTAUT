@@ -57,7 +57,7 @@
                     </td>
                     <td>
                         <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_relation',
-                        study_code=study_code, id_relation=relation.id) }}';">
+                        study_code=study.code, id_relation=relation.id) }}';">
                             Delete Relation
                         </button>
                     </td>
@@ -67,6 +67,10 @@
     </div>
     <button type="button" onclick="window.location.href='{{ url_for('create_study.new_relation', study_code=study.code) }}';">
         Create New Relation
+    </button>
+
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.questionnaire', study_code=study.code) }}';">
+        Go To Questionnaire
     </button>
 
 {% endblock %}

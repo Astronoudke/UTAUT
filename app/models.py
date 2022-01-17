@@ -121,7 +121,7 @@ class CoreVariable(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
-        return '<Core variable {}>'.format(self.code)
+        return '<Core variable {}>'.format(self.name)
 
     def return_creator(self):
         user = User.query.filter_by(id=self.user_id).first().username
@@ -158,6 +158,8 @@ class Questionnaire(db.Model):
     scale = db.Column(db.Integer)
 
     study_id = db.Column(db.Integer, db.ForeignKey('study.id'))
+    linked_demographics = db.relationship('Demographic', secondary=questionnaire_demographic,
+                                           backref=db.backref('demographics'), lazy='dynamic')
     linked_questiongroups = db.relationship('QuestionGroup', backref='questionnaire_questiongroup',
                                             lazy='dynamic')
 
@@ -182,29 +184,45 @@ class QuestionGroup(db.Model):
         return corevariable_name
 
 
+class QuestionType(db.Model):
+    name = db.Column(db.String(64), primary_key=True)
+
+    def __repr__(self):
+        return '<Question type {}>'.format(self.name)
+
+
 class Demographic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
     description = db.Column(db.String(300))
     optional = db.Column(db.Boolean, default=True)
 
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    questiontype = db.Column(db.String(64), db.ForeignKey('question_type.name'))
+    linked_questionnaires = db.relationship('Questionnaire', secondary=questionnaire_demographic,
+                                          backref=db.backref('questionnaires'), lazy='dynamic')
+
     def __repr__(self):
         return '<Demographic {}>'.format(self.name)
 
+    def return_creator(self):
+        user = User.query.filter_by(id=self.user_id).first().username
+        return user
+
     def return_field(self):
-        if self.questiontype_name == "open":
+        if self.questiontype == "open":
             if self.optional:
                 return StringField(self.name)
             required_name = self.name + '*'
             return StringField(required_name, validators=[DataRequired()])
-        elif self.questiontype_name == "multiplechoice":
+        elif self.questiontype == "multiplechoice":
             if self.optional:
                 choices = self.choices.split(',')
                 choices.append("No Answer")
                 return SelectField(u'{}'.format(self.name), choices=choices)
             required_name = self.name + '*'
             return SelectField(u'{}'.format(required_name), choices=self.choices.split(','))
-        elif self.questiontype_name == "radio":
+        elif self.questiontype == "radio":
             if self.optional:
                 choices = self.choices.split(',')
                 choices.append("No Answer")
@@ -212,16 +230,44 @@ class Demographic(db.Model):
             required_name = self.name + '*'
             return RadioField(u'{}'.format(required_name), choices=self.choices.split(','))
 
+    def link(self, questionnaire):
+        if not self.is_linked(questionnaire):
+            questionnaire.linked_demographics.append(self)
+
+    def unlink(self, questionnaire):
+        if self.is_linked(questionnaire):
+            questionnaire.linked_demographics.remove(self)
+
+    def is_linked(self, questionnaire):
+        return questionnaire.linked_demographics.filter(
+            questionnaire_demographic.c.demographic_id == self.id).count() > 0
+
+
+class DemographicOption(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(250))
+
+    demographic_id = db.Column(db.Integer, db.ForeignKey('demographic.id'))
+
+    def __repr__(self):
+        return '<Option {}>'.format(self.name)
+
 
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.String(120))
     reversed_score = db.Column(db.Boolean, default=False)
     question_code = db.Column(db.String(10))
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     questiongroup_id = db.Column(db.Integer, db.ForeignKey('question_group.id'))
 
     def __repr__(self):
         return '<Question {}>'.format(self.question)
+
+    def return_creator(self):
+        user = User.query.filter_by(id=self.user_id).first().username
+        return user
 
 
 class Case(db.Model):

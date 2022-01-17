@@ -1,0 +1,96 @@
+<!-- De pagina waarbinnen de vragenlijst opgesteld kan worden voor het onderzoek. -->
+{% extends "base.html" %}
+{% from 'bootstrap/form.html' import render_form, render_field %}
+
+{% block app_content %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_questionnaire.css') }}">
+    <div class="title-box">
+        <h1 class="title-header"> {{ study.name }}</h1>
+    </div>
+    <!-- De knop om aanpassingen te maken aan de studie. -->
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
+        Edit Study
+    </button>
+    <!-- De tabel waarbinnen de demografieken gegeven staan. -->
+    <div class="table-corevariable">
+        <h1 class="table-header">Collected data participants</h1>
+        <table class="table-class">
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Optional</th>
+          </tr>
+          <!-- Voor iedere demografiek in de vragenlijst de naam, soort demografiek en de optionaliteit weergeven. -->
+          {% for demographic in demographics %}
+            <tr>
+                <td>
+                    {{ demographic.name }}
+                </td>
+                <td>
+                    {{ demographic.questiontype }}
+                </td>
+                <td>
+                    {{ demographic.optional }}
+                </td>
+                <td>
+                    <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_demographic',
+                    study_code=study.code, id_demographic=demographic.id) }}';">
+                        Delete Demographic
+                    </button>
+                </td>
+            </tr>
+          {% endfor %}
+        </table>
+    </div>
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.new_demographic', study_code=study.code) }}';">
+        Create New Demographic
+    </button>
+    <!-- Voor iedere vragengroep/kernvariabele de vragen weergeven, de mogelijkheid om de scores voor de vraag om te
+     draaien en de mogelijkheden om vragen toe te voegen of te verwijderen.-->
+    {% for questiongroup in questiongroups_questions.keys() %}
+        <div class="table-corevariable">
+            <h1 class="table-header"> {{ questiongroup.return_corevariable_name() }}</h1>
+            <table class="table-class">
+              <tr>
+                <th>Question</th>
+              </tr>
+              {% for question in questiongroups_questions.get(questiongroup) %}
+                  <tr>
+                    <td> {{ question.question }}</td>
+                    {% if question.reversed_score %}
+                        <td>
+                            <button type="button" onclick="window.location.href='{{ url_for('create_study.switch_reversed_score',
+                            study_code=study.code, id_question=question.id) }}';">
+                                Make Score Not Reversed
+                            </button>
+                        </td>
+                    {% else %}
+                        <td>
+                            <button type="button" onclick="window.location.href='{{ url_for('create_study.switch_reversed_score',
+                            study_code=study.code, name_question=question.question) }}';">
+                                Make Score Reversed
+                            </button>
+                        </td>
+                    {% endif %}
+                    <td>
+                        <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_question',
+                        study_code=study.code, name_question=question.question) }}';">
+                            Delete Question
+                        </button>
+                    </td>
+                  </tr>
+              {% endfor %}
+            </table>
+        </div>
+
+        <button type="button" onclick="window.location.href='{{ url_for('create_study.new_question',
+        study_code=study.code, corevariable_id=questiongroup.corevariable_id) }}';">
+            Create new question for {{ questiongroup.return_corevariable_name() }}
+        </button>
+    {% endfor %}
+
+    <!-- De knop om terug te gaan naar het bewerken van het onderzoeksmodel. -->
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_model', study_code=study.code) }}';">
+        Go back to the research model
+    </button>
+{% endblock %}

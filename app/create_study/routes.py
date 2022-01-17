@@ -9,11 +9,14 @@ from plspm.scheme import Scheme
 from plspm.mode import Mode
 from app import db
 from app.create_study import bp
-from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm
+from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm, \
+    CreateNewDemographicForm, CreateNewQuestionForm
+from app.create_study.functions import setup_questiongroups
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
-from app.models import User, Study, CoreVariable, Relation, ResearchModel
+from app.models import User, Study, CoreVariable, Relation, ResearchModel, Questionnaire, QuestionGroup, Question, \
+    Demographic, DemographicOption
 
 
 #############################################################################################################
@@ -226,19 +229,19 @@ def new_relation(study_code):
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
 
     form = CreateNewRelationForm()
-    form.abbreviation_influencer.choices = [(corevariable.id, corevariable.name) for corevariable in
+    form.name_influencer.choices = [(corevariable.id, corevariable.name) for corevariable in
                                             model.linked_corevariables]
-    form.abbreviation_influenced.choices = [(corevariable.id, corevariable.name) for corevariable in
+    form.name_influenced.choices = [(corevariable.id, corevariable.name) for corevariable in
                                             model.linked_corevariables]
 
     # Als de gebruiker aangeeft een nieuwe relatie aan te willen maken.
     if form.validate_on_submit():
         # De ID van de beïnvloedende kernvariabele bepalen.
-        id_influencer = [corevariable for corevariable in model.linked_corevariables if corevariable.abbreviation ==
-                         form.abbreviation_influencer.data][0].id
-        # De ID van de beïnvloede kernvariabele bepalen.
-        id_influenced = [corevariable for corevariable in model.linked_corevariables if corevariable.abbreviation ==
-                         form.abbreviation_influenced.data][0].id
+        id_influencer = [corevariable for corevariable in model.linked_corevariables if corevariable.id ==
+                         int(form.name_influencer.data)][0].id
+        # De ID van de beïnvloedde kernvariabele bepalen.
+        id_influenced = [corevariable for corevariable in model.linked_corevariables if corevariable.id ==
+                         int(form.name_influenced.data)][0].id
 
         # De relatie aanmaken tussen de twee relevante kernvariabelen.
         newrelation = Relation(model_id=model.id,
@@ -263,3 +266,216 @@ def remove_relation(study_code, id_relation):
     db.session.commit()
 
     return redirect(url_for('create_study.edit_model', study_code=study_code))
+
+
+#############################################################################################################
+#                                        Vragenlijst opstellen
+#############################################################################################################
+
+
+@bp.route('/questionnaire/<study_code>', methods=['GET', 'POST'])
+@login_required
+def questionnaire(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    setup_questiongroups(study)
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # Voor het geval nieuwe kernvariabelen zijn toegevoegd aan het onderzoeksmodel nieuwe vragenlijstgroepen aanmaken.
+    for corevariable in model.linked_corevariables:
+        if corevariable.id not in [questiongroup.corevariable_id for questiongroup
+                                    in QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id)]:
+            questiongroup = QuestionGroup(questionnaire_id=questionnaire.id,
+                                          corevariable_id=corevariable.id)
+            db.session.add(questiongroup)
+            db.session.commit()
+
+    questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+
+    # Een dictionary met sublijsten van alle vragen per vragenlijstgroep/kernvariabele (questiongroups_questions)
+    # en de opzet ervan
+    questions = []
+    for questiongroup in questiongroups:
+        questions.append(
+            [question for question in
+             Question.query.filter_by(questiongroup_id=questiongroup.id).all()])
+    questiongroups_questions = dict(zip(questiongroups, questions))
+
+    # Een lijst met de demographics die bij het onderzoek horen.
+    demographics = [demographic for demographic in questionnaire.linked_demographics]
+
+    return render_template("create_study/questionnaire.html", title='Questionnaire', study=study, model=model,
+                           questiongroups=questiongroups, questionnaire=questionnaire,
+                           questiongroups_questions=questiongroups_questions, demographics=demographics)
+
+
+@bp.route('/questionnaire/new_demographic/<study_code>', methods=['GET', 'POST'])
+@login_required
+def new_demographic(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    demographics = [demographic for demographic in Demographic.query.filter_by(user_id=current_user.id)]
+    amount_of_demographics = len(demographics)
+
+    return render_template("create_study/new_demographic.html", title="New Demographic", study=study, model=model,
+                           demographics=demographics, amount_of_demographics=amount_of_demographics)
+
+
+@bp.route('/add_demographic/<study_code>/<demographic_id>', methods=['GET', 'POST'])
+@login_required
+def add_demographic(study_code, demographic_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    demographic = Demographic.query.filter_by(id=demographic_id).first()
+
+    demographic.link(questionnaire)
+    db.session.commit()
+
+    return redirect(url_for('create_study.questionnaire', study_code=study_code))
+
+
+@bp.route('/questionnaire/create_new_demographic/<study_code>', methods=['GET', 'POST'])
+@login_required
+def create_new_demographic(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # De Form voor het aanmaken van een nieuwe demografiek.
+    form = CreateNewDemographicForm()
+
+    # Als de gebruiker aangeeft een nieuwe demografiek aan te maken met de gegeven gegevens.
+    if form.validate_on_submit():
+        new_demographic = Demographic(name=form.name_of_demographic.data,
+                                      description=form.description_of_demographic.data,
+                                      optional=form.optionality_of_demographic.data,
+                                      questiontype=form.type_of_demographic.data,
+                                      user_id=current_user.id)
+        db.session.add(new_demographic)
+        new_demographic.link(questionnaire)
+        db.session.commit()
+
+        for demographic_option in form.choices_of_demographic.data.split():
+            new_demographic_option = DemographicOption(name=demographic_option, demographic_id=new_demographic.id)
+            db.session.add(new_demographic_option)
+            db.session.commit()
+
+        return redirect(url_for("create_study.questionnaire", study_code=study_code))
+
+    return render_template("create_study/create_new_demographic.html", title="New Demographic", form=form)
+
+
+@bp.route('/remove_demographic/<study_code>/<id_demographic>', methods=['GET', 'POST'])
+@login_required
+def remove_demographic(study_code, id_demographic):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    Demographic.query.filter_by(id=id_demographic).delete()
+    db.session.commit()
+
+    return redirect(url_for('create_study.questionnaire', study_code=study_code))
+
+
+@bp.route('/questionnaire/new_question/<study_code>/<corevariable_id>', methods=['GET', 'POST'])
+@login_required
+def new_question(study_code, corevariable_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+    questions = [question for question in Question.query.filter_by(user_id=current_user.id)]
+    amount_of_questions = len(questions)
+
+    return render_template("create_study/new_question.html", title="New question", study=study,
+                           corevariable=corevariable, questions=questions, amount_of_questions=amount_of_questions,
+                           corevariable_id=corevariable_id)
+
+
+@bp.route('/questionnaire/create_new_question/<study_code>/<corevariable_id>', methods=['GET', 'POST'])
+@login_required
+def create_new_question(study_code, corevariable_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+    # De Form voor het aanmaken van een nieuwe vraag.
+    form = CreateNewQuestionForm()
+
+    # Als de gebruiker aangeeft een nieuwe vraag aan te maken met de gegeven gegevens.
+    if form.validate_on_submit():
+        questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+        questiongroup = QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id,
+                                                      corevariable_id=corevariable_id).first()
+
+        # De bijbehorende kernvariabele verkrijgen voor het bepalen van de afkorting van de correcte variabele.
+        corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+        abbreviation_corevariable = corevariable.abbreviation
+
+        # De code voor de vraag (de kernvariabele plus een cijfer, zoals "PE3")
+        new_code = abbreviation_corevariable + str(len([question for question in
+                                                        Question.query.filter_by(
+                                                            questiongroup_id=questiongroup.id)]) + 1)
+
+        # Het aanmaken van een nieuwe vraag in de database.
+        new_question = Question(question=form.name_question.data,
+                                questiongroup_id=questiongroup.id,
+                                question_code=new_code)
+        db.session.add(new_question)
+        db.session.commit()
+
+        return redirect(url_for("create_study.questionnaire", study_code=study_code))
+
+    return render_template("create_study/create_new_question.html", title="Create new question", form=form,
+                           corevariable=corevariable)
+
+
+@bp.route('/remove_question/<study_code>/<name_question>', methods=['GET', 'POST'])
+@login_required
+def remove_question(study_code, name_question):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    study = Study.query.filter_by(code=study_code).first()
+    if current_user not in study.linked_users:
+        return redirect(url_for('main.not_authorized'))
+
+    # Checken hoe ver de studie is
+    if study.stage_2:
+        return redirect(url_for('new_study.study_underway', name_study=study.name, study_code=study_code))
+    if study.stage_3:
+        return redirect(url_for('new_study.summary_results', study_code=study_code))
+
+    # Het verwijderen van de vraag uit de database.
+    Question.query.filter_by(question=name_question).delete()
+    db.session.commit()
+
+    return redirect(url_for('new_study.questionnaire', study_code=study_code))
+
+
+@bp.route('/questionnaire/switch_reversed_score/<study_code>/<id_question>', methods=['GET', 'POST'])
+@login_required
+def switch_reversed_score(study_code, id_question):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    # De reversed_score aan- of uitzetten voor de vraag afhankelijk wat de huidige stand is.
+    question = Question.query.filter_by(id=id_question).first()
+    if question.reversed_score:
+        question.reversed_score = False
+        db.session.commit()
+    else:
+        question.reversed_score = True
+        db.session.commit()
+    return redirect(url_for('new_study.questionnaire', study_code=study_code))
