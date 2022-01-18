@@ -16,11 +16,11 @@
 
     <!-- De knop om naar de vragenlijst te gaan. -->
     <button type="button" onclick="window.location.href='{{ url_for('questionnaire.intro_questionnaire', study_code=study.code) }}';">
-        Go to Questionnaire
+        Go to the questionnaire
     </button>
 
     <!-- De optie om het onderzoek te voltooien. -->
     <button type="button" onclick="window.location.href='{{ url_for('create_study.end_study', study_code=study.code) }}';">
-        End questionnaire
+        End study (completion of sending out forms and start of data-analysis)
     </button>
 {% endblock %}

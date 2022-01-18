@@ -6,7 +6,7 @@ from wtforms import RadioField
 from app import db
 from app.questionnaire import bp
 from app.questionnaire.forms import QuestionnaireForm, SubmitForm, StartQuestionnaireForm
-from app.questionnaire.functions import reverse_value
+from app.questionnaire.functions import reverse_value, security_check
 from app.models import User, Study, Case, Questionnaire, Demographic, DemographicAnswer, DemographicOption, \
     QuestionGroup, Question, QuestionAnswer
 
@@ -18,13 +18,15 @@ def invalid_session():
 
 @bp.route('/intro_questionnaire/e/<study_code>', methods=['GET', 'POST'])
 def intro_questionnaire(study_code):
+    security_check(study_code)
+
     # Als de gebruiker nog niet in een sessie zit een nieuwe sessie aanmaken.
     if "user" not in session:
         session["user"] = str(uuid.uuid4())
         session["study"] = study_code
 
     # Als de gebruiker al in een sessie zit verwijzen naar de vragenlijst.
-    if session["user"] in [case.session_id for case in Case.query.all()]:
+    if session["user"] in [case.session for case in Case.query.all()]:
         flash('You are currently already in a session. Complete the questionnaire.')  # return eerste blok vragenpagina
         return redirect(url_for('questionnaire.part_questionnaire', study_code=study_code, part_number=0))
 
@@ -32,7 +34,7 @@ def intro_questionnaire(study_code):
     form = StartQuestionnaireForm()
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
-    demographics = [demographic for demographic in Demographic.query.filter_by(questionnaire_id=questionnaire.id)]
+    demographics = [demographic for demographic in questionnaire.linked_demographics]
 
     # Als de gebruiker aangeeft door te willen gaan naar de start van de vragenlijst.
     if form.validate_on_submit():
@@ -44,7 +46,9 @@ def intro_questionnaire(study_code):
 
 @bp.route('/start_questionnaire/e/<study_code>', methods=['GET', 'POST'])
 def start_questionnaire(study_code):
-    if session["user"] in [case.session_id for case in Case.query.all()] and session["study"] == study_code:
+    security_check(study_code)
+
+    if session["user"] in [case.session for case in Case.query.all()] and session["study"] == study_code:
         flash('You are currently already in a session. Complete the questionnaire.')
         return redirect(url_for('questionnaire.part', study_code=study_code, part_number=0))
 
@@ -98,15 +102,17 @@ def start_questionnaire(study_code):
 
 @bp.route('/questionnaire/e/<study_code>/<part_number>', methods=['GET', 'POST'])
 def part(study_code, part_number):
+    security_check(study_code)
+
     # Als de vragengroepnummer groter is dan de hoeveelheid vragengroepen wordt de gebruiker verwezen naar het einde.
     if int(part_number) >= session['questionnaire_max_part']:
         return redirect(url_for('questionnaire.ending_questionnaire', study_code=study_code))
 
     study = Study.query.filter_by(code=study_code).first()
-    case = Case.query.filter_by(session_id=session["user"]).first()
+    case = Case.query.filter_by(session=session["user"]).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     part = session["questionnaire_parts"][int(part_number)]
-    questions = [question for question in Question.query.filter_by(questiongroup_id=part.id)]
+    questions = part.linked_questions()
 
     # Een dictionary met de vraag als key en een bijbehorende Field om in te vullen als waarde (questions_dict).
     questions_dict = {}
@@ -147,7 +153,7 @@ def part(study_code, part_number):
                         session["question_answers"].append(answer)
         # Naar het volgende onderdeel van de vragenlijst gaan.
         return redirect(
-            url_for('questionnaire.part', study_code=study_code, next_part_number=next_part_number))
+            url_for('questionnaire.part', study_code=study_code, part_number=next_part_number))
 
     return render_template('questionnaire/part.html', title="Questionnaire part {}: {}".format(str(part_number), study.name),
                            study=study, part=part, form=form)
@@ -155,9 +161,11 @@ def part(study_code, part_number):
 
 @bp.route('/ending_questionnaire/e/<study_code>', methods=['GET', 'POST'])
 def ending_questionnaire(study_code):
+    security_check(study_code)
+
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
-    case = Case.query.filter_by(session_id=session["user"]).first()
+    case = Case.query.filter_by(session=session["user"]).first()
     total_question_number = 0
     for questiongroup in QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id):
         total_question_number += Question.query.filter_by(questiongroup_id=questiongroup.id).count()

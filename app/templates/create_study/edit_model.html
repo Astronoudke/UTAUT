@@ -9,7 +9,7 @@
     </div>
     <!-- De optie om het onderzoek zelf aan te passen. -->
     <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
-        Edit Study
+        Edit study
     </button>
     <!-- De tabel met alle kernvariabelen. -->
     <div id="table-corevariables">
@@ -30,7 +30,7 @@
                 <td>
                     <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_corevariable',
                     study_code=study.code, corevariable_id=corevariable.id) }}';">
-                        Delete Variable
+                        Delete variable
                     </button>
                 </td>
             </tr>
@@ -42,7 +42,7 @@
      te voegen. -->
     <div class="popuptext">
         <button type="button" onclick="window.location.href='{{ url_for('create_study.new_corevariable', study_code=study.code) }}';">
-            Create New Core Variable
+            Create new core variable
         </button>
     </div>
 
@@ -58,7 +58,7 @@
                     <td>
                         <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_relation',
                         study_code=study.code, id_relation=relation.id) }}';">
-                            Delete Relation
+                            Delete relation
                         </button>
                     </td>
                 </tr>
@@ -66,11 +66,11 @@
         </table>
     </div>
     <button type="button" onclick="window.location.href='{{ url_for('create_study.new_relation', study_code=study.code) }}';">
-        Create New Relation
+        Create new relation
     </button>
 
     <button type="button" onclick="window.location.href='{{ url_for('create_study.questionnaire', study_code=study.code) }}';">
-        Go To Questionnaire
+        Go to questionnaire
     </button>
 
 {% endblock %}

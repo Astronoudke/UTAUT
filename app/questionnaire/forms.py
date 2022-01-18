@@ -23,4 +23,4 @@ class SubmitForm(FlaskForm):
 
 # De knop om te starten met de vragenlijst.
 class StartQuestionnaireForm(FlaskForm):
-    submit = SubmitField('Start Questionnaire')
+    submit = SubmitField('Start questionnaire')

@@ -7,7 +7,7 @@ import jwt
 from flask import current_app
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from wtforms import StringField, SelectField, RadioField
+from wtforms import StringField, SelectField, RadioField, SelectMultipleField
 from wtforms.validators import DataRequired
 from app import db, login
 
@@ -102,6 +102,10 @@ class Study(db.Model):
     def create_code(self):
         self.code = str(uuid.uuid4())
 
+    def total_completed_cases_questionnaire(self):
+        questionnaire = Questionnaire.query.filter_by(study_id=self.id).first()
+        return questionnaire.total_completed_cases()
+
 
 class ResearchModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -184,6 +188,14 @@ class QuestionGroup(db.Model):
         corevariable_name = CoreVariable.query.filter_by(id=self.corevariable_id).first().name
         return corevariable_name
 
+    def linked_questions(self):
+        questions = [question for question in Question.query.filter_by(questiongroup_id=self.id)]
+        return questions
+
+    def return_amount_of_questions(self):
+        questions = self.linked_questions()
+        return len(questions)
+
 
 class QuestionType(db.Model):
     name = db.Column(db.String(64), primary_key=True)
@@ -210,6 +222,10 @@ class Demographic(db.Model):
         user = User.query.filter_by(id=self.user_id).first().username
         return user
 
+    def return_list_of_options(self):
+        options = [option.name for option in DemographicOption.query.filter_by(demographic_id=self.id)]
+        return options
+
     def return_field(self):
         if self.questiontype == "open":
             if self.optional:
@@ -218,22 +234,18 @@ class Demographic(db.Model):
             return StringField(required_name, validators=[DataRequired()])
         elif self.questiontype == "multiplechoice":
             if self.optional:
-                choices = self.choices.split(',')
+                choices = self.return_list_of_options()
                 choices.append("No Answer")
-                return SelectField(u'{}'.format(self.name), choices=choices)
+                return SelectMultipleField(u'{}'.format(self.name), choices=choices)
             required_name = self.name + '*'
-            return SelectField(u'{}'.format(required_name), choices=self.choices.split(','))
+            return SelectMultipleField(u'{}'.format(required_name), choices=self.return_list_of_options())
         elif self.questiontype == "radio":
             if self.optional:
-                choices = self.choices.split(',')
+                choices = self.return_list_of_options()
                 choices.append("No Answer")
                 return RadioField(u'{}'.format(self.name), choices=choices)
             required_name = self.name + '*'
-            return RadioField(u'{}'.format(required_name), choices=self.choices.split(','))
-
-    def return_list_of_options(self):
-        options = [option for option in DemographicOption.query.filter_by(demographic_id=self.id)]
-        return options
+            return RadioField(u'{}'.format(required_name), choices=self.return_list_of_options())
 
     def return_amount_of_options(self):
         return len(self.return_list_of_options())
@@ -276,6 +288,10 @@ class Question(db.Model):
     def return_creator(self):
         user = User.query.filter_by(id=self.user_id).first().username
         return user
+
+    def return_original_corevariable(self):
+        questiongroup = QuestionGroup.query.filter_by(id=self.questiongroup_id).first()
+        return questiongroup.return_corevariable_name()
 
 
 class Case(db.Model):

@@ -16,7 +16,7 @@ class CreateNewStudyForm(FlaskForm):
                                          render_kw=style_description)
     technology_of_study = StringField('Relevant technology of the study (max. 75 characters)',
                                       validators=[DataRequired(), Length(min=0, max=75)])
-    submit = SubmitField('Create Study')
+    submit = SubmitField('Create study')
 
 
 class EditStudyForm(FlaskForm):
@@ -29,7 +29,7 @@ class EditStudyForm(FlaskForm):
                                          render_kw=style_description)
     technology_of_study = StringField('Relevant technology of the study (max. 75 letters)',
                                       validators=[DataRequired(), Length(min=0, max=75)])
-    submit = SubmitField('Edit Study')
+    submit = SubmitField('Edit study')
 
     def __init__(self, original_name, original_description, original_technology, *args, **kwargs):
         super(EditStudyForm, self).__init__(*args, **kwargs)
@@ -44,13 +44,13 @@ class CreateNewCoreVariableForm(FlaskForm):
                                                                                                  Length(min=0, max=4)])
     description_corevariable = TextAreaField('The description of the core variable',
                                              validators=[Length(min=0, max=800)])
-    submit = SubmitField('Create Core Variable')
+    submit = SubmitField('Create core variable')
 
 
 class CreateNewRelationForm(FlaskForm):
     name_influencer = SelectField(u'Influencer (relation goes from)')
     name_influenced = SelectField(u'Influenced (relation goes to)')
-    submit = SubmitField('Create Relation')
+    submit = SubmitField('Create relation')
 
 
 class CreateNewDemographicForm(FlaskForm):
@@ -67,18 +67,27 @@ class CreateNewDemographicForm(FlaskForm):
                                      validators=[DataRequired(), Length(min=0, max=75)])
     choices_of_demographic = StringField('The choices that go with the question (split by comma only, only for '
                                          'multiplechoice or radio)')
-    submit = SubmitField('Create Demographic')
+    submit = SubmitField('Create demographic')
 
 
 class CreateNewQuestionForm(FlaskForm):
-    name_question = StringField('The Question', validators=[DataRequired(), Length(min=0, max=100)])
-    submit = SubmitField('Create Question')
+    name_question = StringField('The question', validators=[DataRequired(), Length(min=0, max=100)])
+    submit = SubmitField('Create question')
 
 
 class EditQuestionForm(FlaskForm):
-    name_question = StringField('The Question', validators=[DataRequired(), Length(min=0, max=100)])
+    name_question = StringField('The question', validators=[DataRequired(), Length(min=0, max=100)])
     submit = SubmitField('Edit question')
 
     def __init__(self, original_question, *args, **kwargs):
         super(EditQuestionForm, self).__init__(*args, **kwargs)
         self.original_name = original_question
+
+
+class EditScaleForm(FlaskForm):
+    scale_questionnaire = StringField('The scale of the questionnaire', validators=[DataRequired(), Length(min=0, max=5)])
+    submit = SubmitField('Edit scale')
+
+    def __init__(self, original_scale, *args, **kwargs):
+        super(EditScaleForm, self).__init__(*args, **kwargs)
+        self.original_scale = original_scale

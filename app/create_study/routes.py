@@ -10,13 +10,13 @@ from plspm.mode import Mode
 from app import db
 from app.create_study import bp
 from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm, \
-    CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm
+    CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm, EditScaleForm
 from app.create_study.functions import setup_questiongroups
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 from app.models import User, Study, CoreVariable, Relation, ResearchModel, Questionnaire, QuestionGroup, Question, \
-    Demographic, DemographicOption
+    Demographic, DemographicOption, Case
 
 
 #############################################################################################################
@@ -195,7 +195,7 @@ def remove_corevariable(study_code, corevariable_id):
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
-    # questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
 
     # De kernvariabele uit het onderzoeksmodel halen en alle bijbehorende relaties verwijderen.
@@ -206,14 +206,14 @@ def remove_corevariable(study_code, corevariable_id):
     Relation.query.filter_by(influenced_id=corevariable.id, model_id=model.id).delete()
     db.session.commit()
 
-    # Als de kernvariabele al een vragenlijstgroep had binnen de vragenlijst deze en de bijbehorende vragen verwijderen.
-    #if questionnaire:
-    #    questiongroup = QuestionGroup.query.filter_by(title=corevariable.name,
-    #                                                  questionnaire_id=questionnaire.id).first()
-    #    Question.query.filter_by(questiongroup_id=questiongroup.id).delete()
-    #    db.session.commit()
-    #    QuestionGroup.query.filter_by(title=corevariable.name, questionnaire_id=questionnaire.id).delete()
-    #    db.session.commit()
+    #Als de kernvariabele al een vragenlijstgroep had binnen de vragenlijst deze en de bijbehorende vragen verwijderen.
+    if questionnaire:
+        questiongroup = QuestionGroup.query.filter_by(corevariable_id=corevariable.id,
+                                                      questionnaire_id=questionnaire.id).first()
+        Question.query.filter_by(questiongroup_id=questiongroup.id).delete()
+        db.session.commit()
+        QuestionGroup.query.filter_by(corevariable_id=corevariable.id, questionnaire_id=questionnaire.id).delete()
+        db.session.commit()
 
     return redirect(url_for('create_study.edit_model', study_code=study_code))
 
@@ -301,9 +301,7 @@ def questionnaire(study_code):
     # en de opzet ervan
     questions = []
     for questiongroup in questiongroups:
-        questions.append(
-            [question for question in
-             Question.query.filter_by(questiongroup_id=questiongroup.id).all()])
+        questions.append(questiongroup.linked_questions())
     questiongroups_questions = dict(zip(questiongroups, questions))
 
     # Een lijst met de demographics die bij het onderzoek horen.
@@ -312,6 +310,33 @@ def questionnaire(study_code):
     return render_template("create_study/questionnaire.html", title='Questionnaire', study=study, model=model,
                            questiongroups=questiongroups, questionnaire=questionnaire,
                            questiongroups_questions=questiongroups_questions, demographics=demographics)
+
+
+@bp.route('/questionnaire/edit_scale/<study_code>', methods=['GET', 'POST'])
+@login_required
+def edit_scale(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # De Form voor het aanpassen van het onderzoek.
+    form = EditScaleForm(questionnaire.scale)
+
+    # Als de gebruiker aangeeft de onderzoek te willen aanpassen met de gegeven gegevens.
+    if form.validate_on_submit():
+        # De gegevens van de studie worden aangepast naar de ingegeven data binnen de Form.
+        questionnaire.scale = form.scale_questionnaire.data
+        db.session.commit()
+        flash('Your changes have been saved.')
+        return redirect(url_for('create_study.questionnaire', study_code=study.code))
+    # Als niks is ingegeven binnen de Form worden geen aanpassingen gemaakt (en dus gebruikgemaakt van de eigen
+    # onderzoeksgegevens.
+    elif request.method == 'GET':
+        form.scale_questionnaire.data = questionnaire.scale
+
+    return render_template('create_study/edit_scale.html', title='Edit scale', form=form, study=study)
 
 
 @bp.route('/questionnaire/new_demographic/<study_code>', methods=['GET', 'POST'])
@@ -401,13 +426,13 @@ def new_question(study_code, corevariable_id):
     security_and_studycheck(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
-    questions = [question for question in Question.query.filter_by(user_id=current_user.id)]
-    amount_of_questions = len(questions)
+    questiongroups = [questiongroup for questiongroup in
+                      QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id)]
 
     return render_template("create_study/new_question.html", title="New question", study=study,
-                           corevariable=corevariable, questions=questions, amount_of_questions=amount_of_questions,
-                           corevariable_id=corevariable_id)
+                           corevariable=corevariable, questiongroups=questiongroups, corevariable_id=corevariable_id)
 
 
 @bp.route('/add_question/<study_code>/<corevariable_id>/<question_id>', methods=['GET', 'POST'])
@@ -560,12 +585,17 @@ def starting_study(study_code):
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
 
-    # Bepalen of alle vragenlijstgroepen tenminste één vraag hebben. Zo niet, de Flash geven en terugkeren.
+    # Bepalen of alle vragenlijstgroepen tenminste één vraag hebben en er een schaal is gegeven voor de vragenlijst.
+    # Zo niet, de Flash geven en terugkeren.
     for questiongroup in questiongroups:
         if Question.query.filter_by(questiongroup_id=questiongroup.id).count() == 0:
             flash('One or more of the core variables does not have questions yet. Please add at least one question to '
                   'each core variable.')
             return redirect(url_for('create_study.questionnaire', study_code=study.code))
+
+    if questionnaire.scale is None or 4 > questionnaire.scale or questionnaire.scale > 10:
+        flash('A correct scale has not been given yet for the questionnaire. Please select a scale between 4 and 10.')
+        return redirect(url_for('create_study.questionnaire', study_code=study.code))
 
     # Omzetting studie van stage_1 (opstellen van het onderzoek) naar stage_2 (het onderzoek is gaande)
     study.stage_1 = False
@@ -582,6 +612,7 @@ def study_underway(name_study, study_code):
     security_and_studycheck(study_code)
     # De link naar de vragenlijst
     study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     link = '127.0.0.1:5000/d/e/{}'.format(study.code)
 
     return render_template('create_study/study_underway.html', title="Underway: {}".format(name_study), study=study,
@@ -593,9 +624,8 @@ def study_underway(name_study, study_code):
 def end_study(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
     security_and_studycheck(study_code)
-    # De link naar de vragenlijst
+    
     study = Study.query.filter_by(code=study_code).first()
-
     # Omzetting studie van stage_2 (het onderzoek is gaande) naar stage_3 (de data-analyse)
     study.stage_2 = False
     study.stage_3 = True
@@ -603,4 +633,105 @@ def end_study(study_code):
 
     return redirect(url_for('create_study.summary_results', study_code=study_code))
 
+
+#############################################################################################################
+#                                     Data Analyse en visualisatie
+#############################################################################################################
+
+@bp.route('/summary_results/<study_code>', methods=['GET', 'POST'])
+@login_required
+def summary_results(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    demographics = [demographic for demographic in questionnaire.linked_demographics]
+    total_cases = [case for case in Case.query.filter_by(questionnaire_id=questionnaire.id)]
+
+    # Samenvatting van de demografische resultaten
+
+    # Een lijst met alle case-id's en de opzet ervan.
+    cases = []
+    for case in total_cases:
+        for i in range(len(demographics)):
+            cases.append(case.id)
+
+    # Namen van de demografieken en de opzet ervan
+    demos = []
+    for case in total_cases:
+        for demographic in demographics:
+            demos.append(demographic.name)
+
+    # Dictionary met de Case-id's als keys en de gegeven demografische antwoorden als waarden en de opzet ervan
+    dct_demographics = {}
+    for case in cases:
+        dct_demographics[case] = []
+    for (case_id, demo_name) in zip(cases, demos):
+        demo = Demographic.query.filter_by(name=demo_name).first()
+        answer = DemographicAnswer.query.filter_by(case_id=case_id, demographic_id=demo.id).first()
+        if answer is not None:
+            dct_demographics[case_id].append(answer.answer)
+        else:
+            dct_demographics[case_id].append(None)
+
+    # Samenvatting van de vragenlijstresultaten voor iedere case
+
+    # Alle vragengroepen binnen de vragenlijst
+    questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+
+    # Een lijst met de vragen en de opzet ervan
+    questions = []
+    for questiongroup in questiongroups:
+        list_of_questions = [question for question in Question.query.filter_by(questiongroup_id=questiongroup.id)]
+        for question in list_of_questions:
+            questions.append(question)
+
+    # Een lijst met de Case-id's
+    cases = []
+    for case in total_cases:
+        for i in range(len(questions)):
+            cases.append(case.id)
+
+    # Een lijst met de vragen in stringvorm en de opzet ervan
+    quests = []
+    for case in total_cases:
+        for question in questions:
+            quests.append(question.question)
+
+    # Een dictionary met alle cases en de bijbehorende antwoorden op de vragen en de opzet ervan
+    dct_answers = {}
+    for case in cases:
+        dct_answers[case] = []
+    for (case_id, quest_name) in zip(cases, quests):
+        for questiongroup in questiongroups:
+            quest = Question.query.filter_by(question=quest_name, questiongroup_id=questiongroup.id).first()
+            if quest is not None:
+                answer = Answer.query.filter_by(question_id=quest.id, case_id=case_id).first()
+                if answer is not None:
+                    dct_answers[case_id].append(answer.score)
+                else:
+                    dct_answers[case_id].append(None)
+
+    # Samenvatting van de gemiddeldes en standaarddeviaties voor iedere vraag
+
+    # Het creëren van een dictionary met de vragen en een lijst waar de gemiddelden en standaarddeviaties in komen
+    dct_questions = {}
+    for questiongroup in questiongroups:
+        for question in [question for question in Question.query.filter_by(questiongroup_id=questiongroup.id)]:
+            dct_questions[question] = []
+
+    #Voor iedere vraag in de vragenlijst
+    for question in dct_questions:
+        # Een lijst met de scores van de specifieke vraag
+        answer_scores = []
+        for answer in [answer for answer in Answer.query.filter_by(question_id=question.id)]:
+            answer_scores.append(int(answer.score))
+        array = np.array(answer_scores)
+        # Het toevoegen het gemiddelde en de standaarddeviatie van de specifieke vraag
+        dct_questions[question].extend([round(np.average(array), 2), round(np.std(array), 2)])
+
+    return render_template('new_study/summary_results.html', study_code=study_code, demographics=demographics,
+                           cases=cases, dct_demographics=dct_demographics, dct_answers=dct_answers, questions=questions,
+                           dct_questions=dct_questions, study=study)
 

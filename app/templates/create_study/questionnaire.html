@@ -11,6 +11,11 @@
     <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
         Edit Study
     </button>
+    <h2>Scale of the questionnaire</h2>
+    <p>{{ questionnaire.scale }}</p>
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_scale', study_code=study.code) }}';">
+        Edit scale
+    </button>
     <!-- De tabel waarbinnen de demografieken gegeven staan. -->
     <div class="table-corevariable">
         <h1 class="table-header">Collected data participants</h1>
@@ -19,6 +24,7 @@
             <th>Name</th>
             <th>Type</th>
             <th>Optional</th>
+            <th>Choices</th>
           </tr>
           <!-- Voor iedere demografiek in de vragenlijst de naam, soort demografiek en de optionaliteit weergeven. -->
           {% for demographic in demographics %}
@@ -32,6 +38,15 @@
                 <td>
                     {{ demographic.optional }}
                 </td>
+                {% if demographic.return_amount_of_options() > 0 %}
+                    <td>
+                        {% for option in demographic.return_list_of_options() %}
+                            {{ option }};
+                        {% endfor %}
+                    </td>
+                {% else %}
+                    <td>None</td>
+                {% endif %}
                 <td>
                     <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_demographic',
                     study_code=study.code, demographic_id=demographic.id) }}';">
@@ -98,5 +113,10 @@
     <!-- De knop om terug te gaan naar het bewerken van het onderzoeksmodel. -->
     <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_model', study_code=study.code) }}';">
         Go back to the research model
+    </button>
+
+    <!-- De optie om het onderzoek te starten. -->
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.starting_study', study_code=study.code) }}';">
+        Start the study (completion of setting up the study and start of sending out forms)
     </button>
 {% endblock %}

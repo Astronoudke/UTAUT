@@ -24,7 +24,7 @@
                     {% if demographic.return_amount_of_options() > 0 %}
                         <td>
                         {% for option in demographic.return_list_of_options() %}
-                           {{ option.name }}<br>
+                           {{ option }}<br>
                         {% endfor %}
                         </td>
                     {% else %}
