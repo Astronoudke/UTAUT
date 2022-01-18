@@ -3,7 +3,7 @@
 {% from 'bootstrap/form.html' import render_form, render_field %}
 
 {% block content %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='style_intro_questionlist.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style_intro_questionnaire.css') }}">
     <!-- Het tonen van de naam van het onderzoek. -->
     <div class="questionnaire-title-box">
         <div class="title-box">
@@ -30,12 +30,8 @@
         <p class="description"> {{ study.description }} </p>
     </div>
 
-    <!-- De knop om het onderzoek te starten. -->
-    <div class="form-container" style="margin: 10px;">
-        <div class="row">
-            <div class="col-md-4">
-                {{ render_form(form) }}
-            </div>
-        </div>
-    </div>
+    <!-- De knop om aan de vragenlijst te beginnen. -->
+    <button type="button" onclick="window.location.href='{{ url_for('questionnaire.start_questionnaire', study_code=study.code) }}';">
+        Start questionnaire
+    </button>
 {% endblock %}

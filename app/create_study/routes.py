@@ -378,14 +378,14 @@ def create_new_demographic(study_code):
     return render_template("create_study/create_new_demographic.html", title="New Demographic", form=form)
 
 
-@bp.route('/remove_demographic/<study_code>/<id_demographic>', methods=['GET', 'POST'])
+@bp.route('/remove_demographic/<study_code>/<demographic_id>', methods=['GET', 'POST'])
 @login_required
-def remove_demographic(study_code, id_demographic):
+def remove_demographic(study_code, demographic_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
     security_and_studycheck(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
-    demographic = Demographic.query.filter_by(id=id_demographic).first()
+    demographic = Demographic.query.filter_by(id=demographic_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
 
     demographic.unlink(questionnaire)
@@ -509,31 +509,98 @@ def edit_question(study_code, question_id):
                            form=form, study=study)
 
 
-@bp.route('/remove_question/<study_code>/<id_question>', methods=['GET', 'POST'])
+@bp.route('/remove_question/<study_code>/<question_id>', methods=['GET', 'POST'])
 @login_required
-def remove_question(study_code, id_question):
+def remove_question(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
     security_and_studycheck(study_code)
 
     # Het verwijderen van de vraag uit de database.
-    Question.query.filter_by(id=id_question).delete()
+    Question.query.filter_by(id=question_id).delete()
     db.session.commit()
 
     return redirect(url_for('create_study.questionnaire', study_code=study_code))
 
 
-@bp.route('/questionnaire/switch_reversed_score/<study_code>/<id_question>', methods=['GET', 'POST'])
+@bp.route('/questionnaire/switch_reversed_score/<study_code>/<question_id>', methods=['GET', 'POST'])
 @login_required
-def switch_reversed_score(study_code, id_question):
+def switch_reversed_score(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
     security_and_studycheck(study_code)
 
     # De reversed_score aan- of uitzetten voor de vraag afhankelijk wat de huidige stand is.
-    question = Question.query.filter_by(id=id_question).first()
+    question = Question.query.filter_by(id=question_id).first()
     if question.reversed_score:
         question.reversed_score = False
         db.session.commit()
     else:
         question.reversed_score = True
         db.session.commit()
-    return redirect(url_for('new_study.questionnaire', study_code=study_code))
+    return redirect(url_for('create_study.questionnaire', study_code=study_code))
+
+
+#############################################################################################################
+#                                          Start onderzoek
+#############################################################################################################
+
+@bp.route('/starting_study/<study_code>', methods=['GET', 'POST'])
+@login_required
+def starting_study(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    study = Study.query.filter_by(code=study_code).first()
+    if current_user not in study.linked_users:
+        return redirect(url_for('main.not_authorized'))
+
+    # Checken hoe ver de studie is
+    if study.stage_2:
+        return redirect(url_for('create_study.study_underway', name_study=study.name, study_code=study_code))
+    if study.stage_3:
+        return redirect(url_for('create_study.summary_results', study_code=study_code))
+
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+
+    # Bepalen of alle vragenlijstgroepen tenminste één vraag hebben. Zo niet, de Flash geven en terugkeren.
+    for questiongroup in questiongroups:
+        if Question.query.filter_by(questiongroup_id=questiongroup.id).count() == 0:
+            flash('One or more of the core variables does not have questions yet. Please add at least one question to '
+                  'each core variable.')
+            return redirect(url_for('create_study.questionnaire', study_code=study.code))
+
+    # Omzetting studie van stage_1 (opstellen van het onderzoek) naar stage_2 (het onderzoek is gaande)
+    study.stage_1 = False
+    study.stage_2 = True
+    db.session.commit()
+
+    return redirect(url_for('create_study.study_underway', name_study=study.name, study_code=study_code))
+
+
+@bp.route('/study_underway/<name_study>/<study_code>', methods=['GET', 'POST'])
+@login_required
+def study_underway(name_study, study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+    # De link naar de vragenlijst
+    study = Study.query.filter_by(code=study_code).first()
+    link = '127.0.0.1:5000/d/e/{}'.format(study.code)
+
+    return render_template('create_study/study_underway.html', title="Underway: {}".format(name_study), study=study,
+                           link=link, questionnaire=questionnaire)
+
+
+@bp.route('/end_study/<study_code>', methods=['GET', 'POST'])
+@login_required
+def end_study(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+    # De link naar de vragenlijst
+    study = Study.query.filter_by(code=study_code).first()
+
+    # Omzetting studie van stage_2 (het onderzoek is gaande) naar stage_3 (de data-analyse)
+    study.stage_2 = False
+    study.stage_3 = True
+    db.session.commit()
+
+    return redirect(url_for('create_study.summary_results', study_code=study_code))
+
+

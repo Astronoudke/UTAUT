@@ -34,7 +34,7 @@
                 </td>
                 <td>
                     <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_demographic',
-                    study_code=study.code, id_demographic=demographic.id) }}';">
+                    study_code=study.code, demographic_id=demographic.id) }}';">
                         Delete Demographic
                     </button>
                 </td>
@@ -60,14 +60,14 @@
                     {% if question.reversed_score %}
                         <td>
                             <button type="button" onclick="window.location.href='{{ url_for('create_study.switch_reversed_score',
-                            study_code=study.code, id_question=question.id) }}';">
+                            study_code=study.code, question_id=question.id) }}';">
                                 Make score not reversed
                             </button>
                         </td>
                     {% else %}
                         <td>
                             <button type="button" onclick="window.location.href='{{ url_for('create_study.switch_reversed_score',
-                            study_code=study.code, id_question=question.id) }}';">
+                            study_code=study.code, question_id=question.id) }}';">
                                 Make score reversed
                             </button>
                         </td>
@@ -80,7 +80,7 @@
                     </td>
                     <td>
                         <button type="button" onclick="window.location.href='{{ url_for('create_study.remove_question',
-                        study_code=study.code, id_question=question.id) }}';">
+                        study_code=study.code, question_id=question.id) }}';">
                             Delete question
                         </button>
                     </td>

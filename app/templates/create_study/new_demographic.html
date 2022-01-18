@@ -10,14 +10,26 @@
         <table>
             <tr>
                 <th scope="col">Demographic</th>
+                <th scope="col">Type</th>
                 <th scope="col">Optionality</th>
+                <th scope="col">Options</th>
                 <th scope="col">Creator</th>
             </tr>
             {% for demographic in demographics %}
                 <tr>
                     <th scope="row"><a href="{{ url_for('create_study.add_demographic', study_code=study.code, demographic_id=demographic.id) }}">
                         {{ demographic.name }}</a></th>
+                    <td>{{ demographic.questiontype }}</td>
                     <td>{{ demographic.optional }}</td>
+                    {% if demographic.return_amount_of_options() > 0 %}
+                        <td>
+                        {% for option in demographic.return_list_of_options() %}
+                           {{ option.name }}<br>
+                        {% endfor %}
+                        </td>
+                    {% else %}
+                        <td>No options</td>
+                    {% endif %}
                     <td>{{ demographic.return_creator() }}</td>
                 </tr>
             {% endfor %}

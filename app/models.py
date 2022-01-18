@@ -231,6 +231,13 @@ class Demographic(db.Model):
             required_name = self.name + '*'
             return RadioField(u'{}'.format(required_name), choices=self.choices.split(','))
 
+    def return_list_of_options(self):
+        options = [option for option in DemographicOption.query.filter_by(demographic_id=self.id)]
+        return options
+
+    def return_amount_of_options(self):
+        return len(self.return_list_of_options())
+
     def link(self, questionnaire):
         if not self.is_linked(questionnaire):
             questionnaire.linked_demographics.append(self)
@@ -277,10 +284,13 @@ class Case(db.Model):
     start_time = db.Column(db.DateTime, default=datetime.utcnow())
     completed = db.Column(db.Boolean, default=False)
 
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'))
+
 
 class QuestionAnswer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     score = db.Column(db.SmallInteger)
+
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'))
     case_id = db.Column(db.Integer, db.ForeignKey('case.id'))
 
@@ -288,5 +298,6 @@ class QuestionAnswer(db.Model):
 class DemographicAnswer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     answer = db.Column(db.String(200))
+
     case_id = db.Column(db.Integer, db.ForeignKey('case.id'))
     demographic_id = db.Column(db.Integer, db.ForeignKey('demographic.id'))
