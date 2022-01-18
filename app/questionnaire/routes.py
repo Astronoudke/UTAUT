@@ -5,10 +5,16 @@ from flask_login import current_user, login_required
 from wtforms import RadioField
 from app import db
 from app.questionnaire import bp
-from app.questionnaire.forms import QuestionnaireForm, SubmitForm, StartQuestionnaireForm
+from app.questionnaire.forms import QuestionnaireForm, SubmitForm
 from app.questionnaire.functions import reverse_value, security_check
 from app.models import User, Study, Case, Questionnaire, Demographic, DemographicAnswer, DemographicOption, \
     QuestionGroup, Question, QuestionAnswer
+
+
+@bp.route('/clear_session/<study_code>', methods=['GET', 'POST'])
+def clear_session(study_code):
+    session.clear()
+    return redirect(url_for('questionnaire.intro_questionnaire', study_code=study_code))
 
 
 @bp.route('/invalid_session', methods=['GET', 'POST'])
@@ -19,7 +25,6 @@ def invalid_session():
 @bp.route('/intro_questionnaire/e/<study_code>', methods=['GET', 'POST'])
 def intro_questionnaire(study_code):
     security_check(study_code)
-
     # Als de gebruiker nog niet in een sessie zit een nieuwe sessie aanmaken.
     if "user" not in session:
         session["user"] = str(uuid.uuid4())
@@ -28,20 +33,15 @@ def intro_questionnaire(study_code):
     # Als de gebruiker al in een sessie zit verwijzen naar de vragenlijst.
     if session["user"] in [case.session for case in Case.query.all()]:
         flash('You are currently already in a session. Complete the questionnaire.')  # return eerste blok vragenpagina
-        return redirect(url_for('questionnaire.part_questionnaire', study_code=study_code, part_number=0))
+        return redirect(url_for('questionnaire.part', study_code=study_code, part_number=0))
 
     # De Form om aangeven te starten met het onderzoek.
-    form = StartQuestionnaireForm()
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     demographics = [demographic for demographic in questionnaire.linked_demographics]
 
-    # Als de gebruiker aangeeft door te willen gaan naar de start van de vragenlijst.
-    if form.validate_on_submit():
-        return redirect(url_for('main.start_questionnaire', study_code=study_code))
-
     return render_template('questionnaire/intro_questionnaire.html', title="Intro: {}".format(study.name), study=study,
-                           study_code=study_code, form=form, demographics=demographics)
+                           study_code=study_code, demographics=demographics)
 
 
 @bp.route('/start_questionnaire/e/<study_code>', methods=['GET', 'POST'])
@@ -76,8 +76,12 @@ def start_questionnaire(study_code):
         # manier worden de antwoorden pas opgeslagen als de participant de vragenlijst voltooit.
         session["demographic_answers"] = []
         for (demographic, answer) in zip([demographic for demographic in demographics], form.data.values()):
-            demographic_answer = DemographicAnswer(answer=answer, demographic_id=demographic.id, case_id=case.id)
-            session["demographic_answers"].append(demographic_answer)
+            if answer == [] or answer is None:
+                demographic_answer = DemographicAnswer(answer=None, demographic_id=demographic.id, case_id=case.id)
+                session["demographic_answers"].append(demographic_answer)
+            else:
+                demographic_answer = DemographicAnswer(answer=answer, demographic_id=demographic.id, case_id=case.id)
+                session["demographic_answers"].append(demographic_answer)
 
         # Een dictionary met een numerieke key (0 tot en met zoveel) en de vragengroep (questiongroup_dict).
         questiongroup_dict = {}

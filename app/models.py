@@ -174,6 +174,17 @@ class Questionnaire(db.Model):
         total = Case.query.filter_by(questionnaire_id=self.id, completed=True).count()
         return str(total)
 
+    def linked_cases(self):
+        cases = [case for case in Case.query.filter_by(questionnaire_id=self.id, completed=True)]
+        return cases
+
+    def linked_questions(self):
+        questions = []
+        for questiongroup in self.linked_questiongroups:
+            for question in questiongroup.linked_questions():
+                questions.append(question)
+        return questions
+
 
 class QuestionGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -301,6 +312,14 @@ class Case(db.Model):
     completed = db.Column(db.Boolean, default=False)
 
     questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'))
+
+    def linked_demographic_answers(self):
+        answers = [answer for answer in DemographicAnswer.query.filter_by(case_id=self.id)]
+        return answers
+
+    def linked_question_answers(self):
+        answers = [answer for answer in QuestionAnswer.query.filter_by(case_id=self.id)]
+        return answers
 
 
 class QuestionAnswer(db.Model):

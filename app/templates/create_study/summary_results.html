@@ -8,108 +8,41 @@
         <h1>Summary Results</h1>
     </div>
     <!-- De tabel waarin de demografische informatie van alle participanten weergegeven wordt. -->
-    <section>
-      <h1>All demographic results</h1>
-      <div class="tbl-header">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <thead>
-            <tr>
-              <th>ID</th>
-              {% for demographic in demographics %}
-                <th>{{ demographic.name }}</th>
+    <div style="overflow-x: auto; overflow-y: auto; height: 30%;">
+      <table>
+        <tr>
+          <th>ID</th>
+          {% for demographic in demographics %}
+            <th>{{ demographic.name }}</th>
+          {% endfor %}
+        </tr>
+        {% for case in cases %}
+          <tr>
+              <td>{{ case.id }}</td>
+              {% for answer in case.linked_demographic_answers() %}
+                <td>{{ answer.answer }}</td>
               {% endfor %}
-            </tr>
-          </thead>
-        </table>
-      </div>
-      <div class="tbl-content">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <tbody>
-            {% set dictionary = dct_demographics %}
-            {% for i in dictionary %}
-                <tr>
-                  <td style="font-weight: bold;">{{ i }}</td>
-                  {% for k in dictionary[i] %}
-                    <!-- Als er een gegeven is om te geven wordt deze getoond. Anders wordt het gegeven leeggelaten. -->
-                    {% if k %}
-                        <td>{{ k }}</td>
-                    {% else %}
-                        <td>-</td>
-                    {% endif %}
-                  {% endfor %}
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- De tabel waarin alle vragenlijstresultaten per case weergegeven worden. -->
-    <section>
-      <h1>All questionnaire results</h1>
-      <div class="tbl-header">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <thead>
-            <tr>
-              <th>ID</th>
-              {% for question in questions %}
-                <th>{{ question.question_code }}</th>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <!-- De tabel waarin alle vragenresultaten worden weergegeven. -->
+    <div style="overflow-x: auto; overflow-y: auto; height: 30%;">
+      <table>
+        <tr>
+          <th>ID</th>
+          {% for question in questions %}
+            <th>{{ question.question_code }}</th>
+          {% endfor %}
+        </tr>
+        {% for case in cases %}
+          <tr>
+              <td>{{ case.id }}</td>
+              {% for answer in case.linked_question_answers() %}
+                <td>{{ answer.score }}</td>
               {% endfor %}
-            </tr>
-          </thead>
-        </table>
-      </div>
-      <div class="tbl-content">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <tbody>
-            {% set dictionary = dct_answers %}
-            {% for i in dictionary %}
-                <tr>
-                  <td style="font-weight: bold;">{{ i }}</td>
-                  {% for k in dictionary[i] %}
-                    {% if k %}
-                        <td>{{ k }}</td>
-                    {% else %}
-                        <td>-</td>
-                    {% endif %}
-                  {% endfor %}
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- De tabel waarin de gemiddelden en standaardeviaties van de vragen weergegeven worden. -->
-    <section>
-      <h1>Average and standard deviation questions</h1>
-      <div class="tbl-header">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Question</th>
-              <th>AVG</th>
-              <th>SD</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-      <div class="tbl-content">
-        <table cellpadding="0" cellspacing="0" border="0">
-          <tbody>
-            {% set dictionary = dct_questions %}
-            {% for question in dictionary %}
-                <tr>
-                  <td style="font-weight: bold;">{{ question.question_code }}</td>
-                  <td>{{ question.question }}</td>
-                  <td>{{ dictionary[question][0] }}</td>
-                  <td>{{ dictionary[question][1] }}</td>
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-    <button onclick="window.location.href='{{ url_for('new_study.data_analysis', study_code=study.code) }}';">Data-analysis</button>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
 {% endblock %}
