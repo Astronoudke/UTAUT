@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from wtforms import StringField, SelectField, RadioField, SelectMultipleField
 from wtforms.validators import DataRequired
 from app import db, login
+import numpy as np
 
 
 study_user = db.Table('study_user',
@@ -303,6 +304,14 @@ class Question(db.Model):
     def return_original_corevariable(self):
         questiongroup = QuestionGroup.query.filter_by(id=self.questiongroup_id).first()
         return questiongroup.return_corevariable_name()
+
+    def return_average_question_answers(self):
+        answers = [answer.score for answer in QuestionAnswer.query.filter_by(question_id=self.id)]
+        return round(np.average(answers), 2)
+
+    def return_standarddeviation_question_answers(self):
+        answers = [answer.score for answer in QuestionAnswer.query.filter_by(question_id=self.id)]
+        return round(np.std(answers), 2)
 
 
 class Case(db.Model):

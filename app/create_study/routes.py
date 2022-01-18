@@ -651,8 +651,6 @@ def summary_results(study_code):
     questions = [question for question in questionnaire.linked_questions()]
     cases = [case for case in questionnaire.linked_cases()]
 
-    # Samenvatting van de demografische resultaten
-
     return render_template('create_study/summary_results.html', study_code=study_code, demographics=demographics,
                            questions=questions, cases=cases, study=study)
 

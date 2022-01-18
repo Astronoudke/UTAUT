@@ -4,10 +4,9 @@
 
 {% block app_content %}
     <link rel="stylesheet" href="{{ url_for('static', filename='style_summary_results.css') }}">
-    <div class="title-box">
-        <h1>Summary Results</h1>
-    </div>
+    <h1 style="text-align: center;">Summary Results</h1>
     <!-- De tabel waarin de demografische informatie van alle participanten weergegeven wordt. -->
+    <h2 style="text-align:center;">Demographic results</h2>
     <div style="overflow-x: auto; overflow-y: auto; height: 30%;">
       <table>
         <tr>
@@ -27,6 +26,7 @@
       </table>
     </div>
     <!-- De tabel waarin alle vragenresultaten worden weergegeven. -->
+    <h2 style="text-align:center;">Questionnaire results</h2>
     <div style="overflow-x: auto; overflow-y: auto; height: 30%;">
       <table>
         <tr>
@@ -41,6 +41,26 @@
               {% for answer in case.linked_question_answers() %}
                 <td>{{ answer.score }}</td>
               {% endfor %}
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <!-- De tabel waarin alle vragenresultaten worden weergegeven. -->
+    <h2 style="text-align:center;">Averages and standard deviations</h2>
+    <div style="overflow-x: auto; overflow-y: auto; height: 30%;">
+      <table>
+        <tr>
+          <th>Code</th>
+          <th>Question</th>
+          <th>Average</th>
+          <th>Standard deviation</th>
+        </tr>
+        {% for question in questions %}
+          <tr>
+              <td>{{ question.question_code }}</td>
+              <td>{{ question.question }}</td>
+              <td>{{ question.return_average_question_answers() }}</td>
+              <td>{{ question.return_standarddeviation_question_answers() }}</td>
           </tr>
         {% endfor %}
       </table>
