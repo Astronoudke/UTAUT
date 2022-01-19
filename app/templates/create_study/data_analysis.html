@@ -22,7 +22,9 @@
             </tr>
             {% for questiongroup in questiongroups %}
               <tr>
-                  <td style="font-weight: bold;">{{ questiongroup.return_corevariable_name() }}</td>
+                  <td style="font-weight: bold;"><a href="{{ url_for('create_study.corevariable_analysis',
+                  study_code=study.code, questiongroup_id=questiongroup.id) }}">
+                        {{ questiongroup.return_corevariable_name() }}</a></td>
                   <td>{{ questiongroup.return_ave(model, df, config, scheme) }}</td>
                   <td>{{ questiongroup.return_cronbachs_alpha(model, df) }}</td>
                   <td>{{ questiongroup.return_composite_reliability(model, df, config, scheme) }}</td>

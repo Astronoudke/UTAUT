@@ -682,8 +682,8 @@
 
       /* De VIF (Variance Inflation Factor)-kleinschalige grafiek */
           const labels_vif = [
-              {% for item in items_lv %}
-                '{{ item }}',
+              {% for question in questions_of_questiongroup %}
+                '{{ question.question_code }}',
               {% endfor %}
           ];
           var data_vif = {
@@ -691,7 +691,7 @@
               datasets: [{
                 label: 'Variance Inflation Factor',
                 backgroundColor: [
-                  {% for i in range(length_items_lv) %}
+                  {% for i in range(length_questionlist) %}
                     chartColors.green,
                   {% endfor %}
                 ],
@@ -746,8 +746,8 @@
 
       /* De Ladingen-kleinschalige grafiek */
           const labels_loadings = [
-              {% for item in items_lv %}
-                '{{ item }}',
+              {% for question in questions_of_questiongroup %}
+                '{{ question.question_code }}',
               {% endfor %}
           ];
           var data_loadings = {
@@ -755,7 +755,7 @@
               datasets: [{
                 label: 'Loading',
                 backgroundColor: [
-                  {% for i in range(length_items_lv) %}
+                  {% for i in range(length_questionlist) %}
                     chartColors.green,
                   {% endfor %}
                 ],

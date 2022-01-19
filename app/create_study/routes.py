@@ -13,7 +13,7 @@ from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewC
     CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm, EditScaleForm
 from app.create_study.functions import setup_questiongroups, setup_structure_dataframe, cronbachs_alpha, composite_reliability, \
     average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist, \
-    indexes_questiongroups_three
+    indexes_questiongroups_three, correlation_matrix
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
@@ -721,13 +721,9 @@ def corevariable_analysis(study_code, questiongroup_id):
     questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
     relevant_questiongroup = QuestionGroup.query.filter_by(id=questiongroup_id).first()
 
-    # De lengte van de afkorting van de kernvariabele voor het geval bepaald moet worden of een specifieke afkorting
-    # die van de relevante kernvariabele is.
-    length_abbreviation = len(corevariable.abbreviation)
-
     # De items/vragen (de code specifiek gezegd) die horen bij de kernvariabele
     questions_of_questiongroup = [question for question in relevant_questiongroup.linked_questions()]
-    length_questions_list = len(items_lv)
+    length_questionlist = len(questions_of_questiongroup)
 
     # Het opzetten van de dataframe (gebruik van plspm package en pd.dataframe met de vragenlijstresultaten)
     questionlist_and_answerlist = return_questionlist_and_answerlist(questiongroups)
@@ -778,15 +774,16 @@ def corevariable_analysis(study_code, questiongroup_id):
     corevariable_cr_js = [questiongroup.return_composite_reliability(model, df, config, scheme) for
                           questiongroup in questiongroups[indexes_questiongroups[0]:indexes_questiongroups[2] + 1]]
 
-    length_corevariables = len(corevariable_names_js_all)
+    length_corevariables = len(corevariable_js_all)
 
     # VIF-waarden
-    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
     dct_of_all_vifs = outer_vif_values_dict(df, questionnaire)
-    corevariable_vif_js = [dct_of_all_vifs[key] for key in dct_of_all_vifs if key[:length_abbreviation] ==
-                           corevariable.abbreviation]
+    corevariable_abbreviation = relevant_questiongroup.return_corevariable_abbreviation()
+    corevariable_vif_js = [dct_of_all_vifs[key] for key in dct_of_all_vifs if key[:len(corevariable_abbreviation)] ==
+                           corevariable_abbreviation]
 
     # HTMT-waarden
+    corevariable = CoreVariable.query.filter_by(id=relevant_questiongroup.corevariable_id).first()
     corevariables_htmt = corevariables
     corevariables_htmt.remove(corevariable)
     length_corevariables_htmt = len(corevariables_htmt)
@@ -798,13 +795,13 @@ def corevariable_analysis(study_code, questiongroup_id):
 
     # Ladingen van de items
     loadings_dct = pd.DataFrame(model1['loading']).to_dict('dict')['loading']
-    loadings_list = [loadings_dct[item] for item in items_lv]
+    loadings_list = [question.return_loading(loadings_dct) for question in questions_of_questiongroup]
 
-    return render_template('new_study/corevariable_analysis.html', study_code=study_code, corevariable=corevariable,
+    return render_template('create_study/corevariable_analysis.html', study_code=study_code, corevariable=corevariable,
                            corevariables=corevariables, corevariable_names_js=corevariable_names_js,
                            corevariable_ave_js=corevariable_ave_js, corevariable_ca_js=corevariable_ca_js,
                            corevariable_cr_js=corevariable_cr_js, corevariable_js_all=corevariable_js_all,
-                           corevariable_ave_js_all=corevariable_ave_js_all, items_lv=items_lv, length_items_lv=length_items_lv,
+                           corevariable_ave_js_all=corevariable_ave_js_all, questions_of_questiongroup=questions_of_questiongroup, length_questionlist=length_questionlist,
                            corevariable_ca_js_all=corevariable_ca_js_all, corevariable_vif_js=corevariable_vif_js,
                            corevariable_cr_js_all=corevariable_cr_js_all, length_corevariables=length_corevariables,
                            loadings_list=loadings_list, corevariables_htmt=corevariables_htmt,
