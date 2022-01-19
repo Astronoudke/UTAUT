@@ -467,6 +467,10 @@ class Question(db.Model):
         loading = loadings_dct[self.question_code]
         return round(loading, 4)
 
+    def return_vif(self, outer_vif_dct):
+        vif = outer_vif_dct[self.question_code]
+        return round(vif, 4)
+
 
 class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)

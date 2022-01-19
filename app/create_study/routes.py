@@ -12,7 +12,8 @@ from app.create_study import bp
 from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm, \
     CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm, EditScaleForm
 from app.create_study.functions import setup_questiongroups, setup_structure_dataframe, cronbachs_alpha, composite_reliability, \
-    average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist
+    average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist, \
+    indexes_questiongroups_three
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
@@ -697,12 +698,115 @@ def data_analysis(study_code):
 
     # Buitenste VIF-waarden worden hier beschikbaar gemaakt in een dictionary onder "data_outer_vif". Module bovenaan
     # geïmporteerd.
-    data_outer_vif = outer_vif_values_dict(df, questionnaire)
+    outer_vif_dct = outer_vif_values_dict(df, questionnaire)
 
     model.edited = False
     db.session.commit()
 
     return render_template('create_study/data_analysis.html', study_code=study_code, df=df, config=config, scheme=scheme,
-                           data_outer_vif=data_outer_vif, questiongroups=questiongroups, model=model,
+                           outer_vif_dct=outer_vif_dct, questiongroups=questiongroups, model=model, corevariables=corevariables,
                            data_htmt=data_htmt, amount_of_variables=amount_of_variables, study=study,
                            loadings_dct=loadings_dct)
+
+
+@bp.route('/data_analysis/corevariable_analysis/<study_code>/<questiongroup_id>', methods=['GET', 'POST'])
+@login_required
+def corevariable_analysis(study_code, questiongroup_id):
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    corevariables = [corevariable for corevariable in model.linked_corevariables]
+    questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+    relevant_questiongroup = QuestionGroup.query.filter_by(id=questiongroup_id).first()
+
+    # De lengte van de afkorting van de kernvariabele voor het geval bepaald moet worden of een specifieke afkorting
+    # die van de relevante kernvariabele is.
+    length_abbreviation = len(corevariable.abbreviation)
+
+    # De items/vragen (de code specifiek gezegd) die horen bij de kernvariabele
+    questions_of_questiongroup = [question for question in relevant_questiongroup.linked_questions()]
+    length_questions_list = len(items_lv)
+
+    # Het opzetten van de dataframe (gebruik van plspm package en pd.dataframe met de vragenlijstresultaten)
+    questionlist_and_answerlist = return_questionlist_and_answerlist(questiongroups)
+    list_of_questions = questionlist_and_answerlist[0]
+    list_of_answers = questionlist_and_answerlist[1]
+
+    df = pd.DataFrame(list_of_answers).transpose()
+    df.columns = list_of_questions
+
+    # Functie "setup_structure_dataframe" terug te vinden in "new_study/functions".
+    structure = setup_structure_dataframe(corevariables, model.id)
+
+    config = c.Config(structure.path(), scaled=False)
+    scheme = Scheme.CENTROID
+
+    for corevariable in corevariables:
+        config.add_lv_with_columns_named(corevariable.abbreviation, Mode.A, df, corevariable.abbreviation)
+
+    plspm_calc = Plspm(df, config, Scheme.CENTROID)
+    model1 = plspm_calc.outer_model()
+
+    # De AVE, Cronbach's Alpha, Composite Reliability voor de fullscreen grafieken (met alle kernvariabelen erin).
+    corevariable_js_all = [corevariable for corevariable in model.linked_corevariables]
+    corevariable_ave_js_all = [questiongroup.return_ave(model, df, config, scheme) for questiongroup in questiongroups]
+    corevariable_ca_js_all = [questiongroup.return_cronbachs_alpha(model, df) for questiongroup in questiongroups]
+    corevariable_cr_js_all = [questiongroup.return_composite_reliability(model, df, config, scheme)
+                              for questiongroup in questiongroups]
+
+    # De AVE, Cronbach's Alpha, Composite Reliability, ladingen, VIF-waarden en HTMT-ratios voor de kleinere grafieken
+    # (voor AVE, CA, CR en HTMT worden de twee/drie dichtstbijzijnde kernvariabelen gebruikt).
+
+    # De indexes van de eerste dichtstbijzijnde kernvariabele, de specifieke kernvariabele en de tweede dichtstbijzijnde
+    # kernvariabele respectievelijk.
+    indexes_questiongroups = indexes_questiongroups_three(questiongroups, questiongroup_id)
+
+    # Namen van de eerste dichtstbijzijnde kernvariabele, de specifieke kernvariabele en de tweede dichtstbijzijnde
+    # kernvariabele respectievelijk.
+    corevariable_names_js = [corevariable for corevariable in
+                             [corevariables[indexes_questiongroups[0]], corevariables[indexes_questiongroups[1]],
+                              corevariables[indexes_questiongroups[2]]]]
+    # AVE-lijst
+    corevariable_ave_js = [questiongroup.return_ave(model, df, config, scheme) for
+                           questiongroup in questiongroups[indexes_questiongroups[0]:indexes_questiongroups[2] + 1]]
+    # Cronbach's Alpha lijst
+    corevariable_ca_js = [questiongroup.return_cronbachs_alpha(model, df) for
+                          questiongroup in questiongroups[indexes_questiongroups[0]:indexes_questiongroups[2] + 1]]
+    # Composite Reliability lijst
+    corevariable_cr_js = [questiongroup.return_composite_reliability(model, df, config, scheme) for
+                          questiongroup in questiongroups[indexes_questiongroups[0]:indexes_questiongroups[2] + 1]]
+
+    length_corevariables = len(corevariable_names_js_all)
+
+    # VIF-waarden
+    corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+    dct_of_all_vifs = outer_vif_values_dict(df, questionnaire)
+    corevariable_vif_js = [dct_of_all_vifs[key] for key in dct_of_all_vifs if key[:length_abbreviation] ==
+                           corevariable.abbreviation]
+
+    # HTMT-waarden
+    corevariables_htmt = corevariables
+    corevariables_htmt.remove(corevariable)
+    length_corevariables_htmt = len(corevariables_htmt)
+    corevariable_names_htmt_js = corevariables_htmt[:3]
+    corevariable_htmt_js = [round(heterotrait_monotrait(corevariable, lv, correlation_matrix(df), df), 4)
+                            for lv in corevariables_htmt[:3]]
+    corevariable_htmt_js_all = [round(heterotrait_monotrait(corevariable, lv, correlation_matrix(df), df), 4)
+                                for lv in corevariables_htmt]
+
+    # Ladingen van de items
+    loadings_dct = pd.DataFrame(model1['loading']).to_dict('dict')['loading']
+    loadings_list = [loadings_dct[item] for item in items_lv]
+
+    return render_template('new_study/corevariable_analysis.html', study_code=study_code, corevariable=corevariable,
+                           corevariables=corevariables, corevariable_names_js=corevariable_names_js,
+                           corevariable_ave_js=corevariable_ave_js, corevariable_ca_js=corevariable_ca_js,
+                           corevariable_cr_js=corevariable_cr_js, corevariable_js_all=corevariable_js_all,
+                           corevariable_ave_js_all=corevariable_ave_js_all, items_lv=items_lv, length_items_lv=length_items_lv,
+                           corevariable_ca_js_all=corevariable_ca_js_all, corevariable_vif_js=corevariable_vif_js,
+                           corevariable_cr_js_all=corevariable_cr_js_all, length_corevariables=length_corevariables,
+                           loadings_list=loadings_list, corevariables_htmt=corevariables_htmt,
+                           corevariable_htmt_js=corevariable_htmt_js, corevariable_names_htmt_js=corevariable_names_htmt_js,
+                           length_corevariables_htmt=length_corevariables_htmt, corevariable_htmt_js_all=corevariable_htmt_js_all)

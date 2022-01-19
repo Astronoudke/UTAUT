@@ -53,6 +53,22 @@ def return_questionlist_and_answerlist(list_of_questiongroups):
     return list_of_questions, list_of_answers
 
 
+def indexes_questiongroups_three(list_of_questiongroups, questiongroup_id):
+    length_questiongroups = len(list_of_questiongroups)
+    indexes_corevariables = []
+    for questiongroup in list_of_questiongroups:
+        if questiongroup.id == int(questiongroup_id):
+            if list_of_questiongroups.index(questiongroup) == 0:
+                indexes_corevariables = [0, 1, 2]
+            elif list_of_questiongroups.index(questiongroup) == length_questiongroups - 1:
+                indexes_corevariables = [length_questiongroups - 3, length_questiongroups - 2, length_questiongroups - 1]
+            else:
+                indexes_corevariables = [list_of_questiongroups.index(questiongroup) - 1,
+                                         list_of_questiongroups.index(questiongroup),
+                                         list_of_questiongroups.index(questiongroup) + 1]
+
+    return indexes_corevariables
+
 # Berekeningen
 
 def variance(items, dataset):
