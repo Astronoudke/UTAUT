@@ -17,7 +17,7 @@
         </tr>
         {% for case in cases %}
           <tr>
-              <td>{{ case.id }}</td>
+              <td style="font-weight: bold;">{{ case.id }}</td>
               {% for answer in case.linked_demographic_answers() %}
                 <td>{{ answer.answer }}</td>
               {% endfor %}
@@ -37,7 +37,7 @@
         </tr>
         {% for case in cases %}
           <tr>
-              <td>{{ case.id }}</td>
+              <td style="font-weight: bold;">{{ case.id }}</td>
               {% for answer in case.linked_question_answers() %}
                 <td>{{ answer.score }}</td>
               {% endfor %}
@@ -57,7 +57,7 @@
         </tr>
         {% for question in questions %}
           <tr>
-              <td>{{ question.question_code }}</td>
+              <td style="font-weight: bold;">{{ question.question_code }}</td>
               <td>{{ question.question }}</td>
               <td>{{ question.return_average_question_answers() }}</td>
               <td>{{ question.return_standarddeviation_question_answers() }}</td>
@@ -65,4 +65,7 @@
         {% endfor %}
       </table>
     </div>
+    <button type="button" onclick="window.location.href='{{ url_for('create_study.data_analysis', study_code=study.code) }}';">
+        Go to the data-analysis
+    </button>
 {% endblock %}

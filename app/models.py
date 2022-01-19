@@ -12,6 +12,14 @@ from wtforms.validators import DataRequired
 from app import db, login
 import numpy as np
 
+import plspm.config as c
+from plspm.plspm import Plspm
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+from statsmodels.tools.tools import add_constant
+import math
+import pandas as pd
+import numpy as np
+
 
 study_user = db.Table('study_user',
                       db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
@@ -111,6 +119,7 @@ class Study(db.Model):
 class ResearchModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200))
+    edited = db.Column(db.Boolean, default=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     linked_corevariables = db.relationship('CoreVariable', secondary=researchmodel_corevariable,
@@ -200,6 +209,10 @@ class QuestionGroup(db.Model):
         corevariable_name = CoreVariable.query.filter_by(id=self.corevariable_id).first().name
         return corevariable_name
 
+    def return_corevariable_abbreviation(self):
+        corevariable_abbreviation = CoreVariable.query.filter_by(id=self.corevariable_id).first().abbreviation
+        return corevariable_abbreviation
+
     def linked_questions(self):
         questions = [question for question in Question.query.filter_by(questiongroup_id=self.id)]
         return questions
@@ -207,6 +220,143 @@ class QuestionGroup(db.Model):
     def return_amount_of_questions(self):
         questions = self.linked_questions()
         return len(questions)
+
+    # Berekeningen
+
+    def generate_ave(self, dataset, configuration, scheme):
+        corevariable = CoreVariable.query.filter_by(id=self.corevariable_id).first()
+
+        abbreviation = corevariable.abbreviation
+        plspm_calc = Plspm(dataset, configuration, scheme)
+        model = plspm_calc.outer_model()
+
+        # Dictionary met alleen loadings van latente variabele (loadings_dct)
+        loadings_dct = pd.DataFrame(model['loading']).to_dict('dict')['loading']
+        not_questions = [question for question in loadings_dct if question[:len(abbreviation)] == abbreviation]
+        loadings_dct = {key: loadings_dct[key] for key in loadings_dct if key in not_questions}
+
+        # Lijst met ladingen (loadings), lijst met gekwadrateerde ladingen (loadings_squared) en de populatie (oftewel
+        # hoeveel ladingen/items er zijn.
+        loadings = [loadings_dct[i] for i in loadings_dct]
+        loadings_squared = [score * score for score in loadings]
+        population = len(loadings)
+
+        return sum(loadings_squared) / population
+
+    def return_ave(self, model, dataset, configuration, scheme):
+        if not model.edited:
+            ave = AverageVarianceExtracted.query.filter_by(questiongroup_id=self.id).first()
+            if not ave:
+                ave = AverageVarianceExtracted(value=self.generate_ave(dataset, configuration, scheme),
+                                               questiongroup_id=self.id)
+                db.session.add(ave)
+                db.session.commit()
+            return round(ave.value, 4)
+        else:
+            ave = AverageVarianceExtracted(value=self.generate_ave(dataset, configuration, scheme),
+                                           questiongroup_id=self.id)
+            db.session.add(ave)
+            db.session.commit()
+
+            return round(ave.value, 4)
+
+    def variance(self, items, dataset):
+        # Als er één item is gegeven binnen de lijst (de variantie van één item wordt berekend).
+        if len(items) == 1:
+            # De item wordt gereturned met "item"
+            item = items[0]
+            scores = [score for score in dataset[item]]
+            average = sum(scores) / len(scores)
+            # Een lijst met de gekwadrateerde verschillen tussen de scores en de gemiddelde van de scores
+            differences_squared = [(score - average) * (score - average) for score in scores]
+
+            return sum(differences_squared) / (len(scores))
+
+        # Als er meerdere items gegeven zijn.
+        else:
+            scores_per_case = {}
+            scores = len([score for score in dataset[items[0]]])
+            for question in items:
+                for row in range(scores):
+                    if row in scores_per_case:
+                        scores_per_case[row].append(dataset[question][row])
+                    else:
+                        scores_per_case[row] = []
+                        scores_per_case[row].append(dataset[question][row])
+
+            list_of_totals = [sum(scores_per_case[case]) for case in scores_per_case]
+
+            average = sum(list_of_totals) / len(list_of_totals)
+            differences_squared = [(score - average) * (score - average) for score in list_of_totals]
+
+            return sum(differences_squared) / (len(list_of_totals))
+
+    def generate_cronbachs_alpha(self, dataset):
+        corevariable = CoreVariable.query.filter_by(id=self.corevariable_id).first()
+
+        abbreviation = corevariable.abbreviation
+        # Alle vragen binnen de kernvariabele.
+        questions = [i for i in [question for question in dataset if question[:len(abbreviation)] == abbreviation]]
+        total_items = len(questions)
+        # De variantie van de "totaal"kolom, oftewel per case de scores opgeteld.
+        variance_total_column = self.variance(questions, dataset)
+        # Een lijst met de varianties voor iedere item
+        variance_questions = [self.variance([question], dataset) for question in questions]
+
+        return (total_items / (total_items - 1)) * (
+                (variance_total_column - sum(variance_questions)) / variance_total_column)
+
+    def return_cronbachs_alpha(self, model, dataset):
+        if not model.edited:
+            ca = CronbachsAlpha.query.filter_by(questiongroup_id=self.id).first()
+            if not ca:
+                ca = CronbachsAlpha(value=self.generate_cronbachs_alpha(dataset), questiongroup_id=self.id)
+                db.session.add(ca)
+                db.session.commit()
+            return round(ca.value, 4)
+        else:
+            ca = CronbachsAlpha(value=self.generate_cronbachs_alpha(dataset), questiongroup_id=self.id)
+            db.session.add(ca)
+            db.session.commit()
+
+            return round(ca.value, 4)
+
+    def generate_composite_reliability(self, dataset, configuration, scheme):
+        corevariable = CoreVariable.query.filter_by(id=self.corevariable_id).first()
+
+        abbreviation = corevariable.abbreviation
+        plspm_calc = Plspm(dataset, configuration, scheme)
+        model = plspm_calc.outer_model()
+
+        # Dictionary met alleen loadings van kernvariabele (loadings_dct)
+        loadings_dct = pd.DataFrame(model['loading']).to_dict('dict')['loading']
+        questions = [question for question in loadings_dct if question[:len(abbreviation)] == abbreviation]
+        loadings_dct = {key: loadings_dct[key] for key in loadings_dct if key in questions}
+
+        # Lijst met de ladingen (loadings), lijst met de gekwadrateerde ladingen (loadings_squared) en lijst met de
+        # errors (errors).
+        loadings = [loadings_dct[i] for i in loadings_dct]
+        loadings_squared = [score * score for score in loadings]
+        errors = [1 - score for score in loadings_squared]
+
+        return (sum(loadings) * sum(loadings)) / ((sum(loadings) * sum(loadings)) + sum(errors))
+
+    def return_composite_reliability(self, model, dataset, configuration, scheme):
+        if not model.edited:
+            cr = CompositeReliability.query.filter_by(questiongroup_id=self.id).first()
+            if not cr:
+                cr = CompositeReliability(value=self.generate_composite_reliability(dataset, configuration, scheme),
+                                          questiongroup_id=self.id)
+                db.session.add(cr)
+                db.session.commit()
+            return round(cr.value, 4)
+        else:
+            cr = CompositeReliability(value=self.generate_composite_reliability(dataset, configuration, scheme),
+                                      questiongroup_id=self.id)
+            db.session.add(cr)
+            db.session.commit()
+
+            return round(cr.value, 4)
 
 
 class QuestionType(db.Model):
@@ -313,6 +463,10 @@ class Question(db.Model):
         answers = [answer.score for answer in QuestionAnswer.query.filter_by(question_id=self.id)]
         return round(np.std(answers), 2)
 
+    def return_loading(self, loadings_dct):
+        loading = loadings_dct[self.question_code]
+        return round(loading, 4)
+
 
 class Case(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -345,3 +499,26 @@ class DemographicAnswer(db.Model):
 
     case_id = db.Column(db.Integer, db.ForeignKey('case.id'))
     demographic_id = db.Column(db.Integer, db.ForeignKey('demographic.id'))
+
+
+# Berekeningen
+
+class AverageVarianceExtracted(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(db.Float)
+
+    questiongroup_id = db.Column(db.Integer, db.ForeignKey('question_group.id'))
+
+
+class CronbachsAlpha(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(db.Float)
+
+    questiongroup_id = db.Column(db.Integer, db.ForeignKey('question_group.id'))
+
+
+class CompositeReliability(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(db.Float)
+
+    questiongroup_id = db.Column(db.Integer, db.ForeignKey('question_group.id'))

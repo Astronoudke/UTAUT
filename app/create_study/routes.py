@@ -11,7 +11,8 @@ from app import db
 from app.create_study import bp
 from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewCoreVariableForm, CreateNewRelationForm, \
     CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm, EditScaleForm
-from app.create_study.functions import setup_questiongroups
+from app.create_study.functions import setup_questiongroups, setup_structure_dataframe, cronbachs_alpha, composite_reliability, \
+    average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist
 from app.main.functions import security_and_studycheck
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
@@ -654,3 +655,54 @@ def summary_results(study_code):
     return render_template('create_study/summary_results.html', study_code=study_code, demographics=demographics,
                            questions=questions, cases=cases, study=study)
 
+
+@bp.route('/data_analysis/<study_code>', methods=['GET', 'POST'])
+@login_required
+def data_analysis(study_code):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_and_studycheck(study_code)
+
+    study = Study.query.filter_by(code=study_code).first()
+    questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    corevariables = [corevariable for corevariable in model.linked_corevariables]
+
+    # Het opzetten van de dataframe (gebruik van plspm package en pd.dataframe met de vragenlijstresultaten)
+    questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+    questionlist_and_answerlist = return_questionlist_and_answerlist(questiongroups)
+    list_of_questions = questionlist_and_answerlist[0]
+    list_of_answers = questionlist_and_answerlist[1]
+
+    df = pd.DataFrame(list_of_answers).transpose()
+    df.columns = list_of_questions
+
+    structure = setup_structure_dataframe(corevariables, model.id)
+
+    config = c.Config(structure.path(), scaled=False)
+    scheme = Scheme.CENTROID
+
+    for corevariable in corevariables:
+        config.add_lv_with_columns_named(corevariable.abbreviation, Mode.A, df, corevariable.abbreviation)
+
+    plspm_calc = Plspm(df, config, scheme)
+    plspm_model = plspm_calc.outer_model()
+
+    # Creëert dictionary met alleen loadings van latente variabele
+    loadings_dct = pd.DataFrame(plspm_model['loading']).to_dict('dict')['loading']
+
+    # Een matrix van Heterotrait-Monotrait Ratio wordt hier beschikbaar gemaakt (module "htmt_matrix" staat bovenaan
+    # verwezen.
+    data_htmt = htmt_matrix(df, model)
+    amount_of_variables = len(corevariables)
+
+    # Buitenste VIF-waarden worden hier beschikbaar gemaakt in een dictionary onder "data_outer_vif". Module bovenaan
+    # geïmporteerd.
+    data_outer_vif = outer_vif_values_dict(df, questionnaire)
+
+    model.edited = False
+    db.session.commit()
+
+    return render_template('create_study/data_analysis.html', study_code=study_code, df=df, config=config, scheme=scheme,
+                           data_outer_vif=data_outer_vif, questiongroups=questiongroups, model=model,
+                           data_htmt=data_htmt, amount_of_variables=amount_of_variables, study=study,
+                           loadings_dct=loadings_dct)
