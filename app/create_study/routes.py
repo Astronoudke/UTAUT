@@ -170,7 +170,9 @@ def add_corevariable(study_code, corevariable_id):
 @login_required
 def create_new_corevariable(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     # De Form voor het aanmaken van een nieuwe kernvariabele.
@@ -201,7 +203,9 @@ def create_new_corevariable(study_code):
 @login_required
 def remove_corevariable(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -232,7 +236,9 @@ def remove_corevariable(study_code, corevariable_id):
 @login_required
 def new_relation(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     # De Form voor het aanmaken van een nieuwe relatie.
     study = Study.query.filter_by(code=study_code).first()
@@ -271,7 +277,9 @@ def new_relation(study_code):
 @login_required
 def remove_relation(study_code, id_relation):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     # Het verwijderen van de relevante relatie.
     Relation.query.filter_by(id=id_relation).delete()
@@ -289,7 +297,9 @@ def remove_relation(study_code, id_relation):
 @login_required
 def questionnaire(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -326,7 +336,9 @@ def questionnaire(study_code):
 @login_required
 def edit_scale(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -353,7 +365,9 @@ def edit_scale(study_code):
 @login_required
 def new_demographic(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -368,7 +382,9 @@ def new_demographic(study_code):
 @login_required
 def add_demographic(study_code, demographic_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -384,7 +400,9 @@ def add_demographic(study_code, demographic_id):
 @login_required
 def create_new_demographic(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -417,7 +435,9 @@ def create_new_demographic(study_code):
 @login_required
 def remove_demographic(study_code, demographic_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     demographic = Demographic.query.filter_by(id=demographic_id).first()
@@ -433,7 +453,9 @@ def remove_demographic(study_code, demographic_id):
 @login_required
 def new_question(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
