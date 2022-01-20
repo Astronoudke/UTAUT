@@ -14,7 +14,7 @@ from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewC
 from app.create_study.functions import setup_questiongroups, setup_structure_dataframe, cronbachs_alpha, composite_reliability, \
     average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist, \
     indexes_questiongroups_three, correlation_matrix
-from app.main.functions import security_and_studycheck
+from app.main.functions import security_and_studycheck_stage1, security_and_studycheck_stage2, security_and_studycheck_stage3
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 from app.models import User, Study, CoreVariable, Relation, ResearchModel, Questionnaire, QuestionGroup, Question, \
@@ -52,7 +52,7 @@ def new_study():
 @login_required
 def edit_study(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
     study = Study.query.filter_by(code=study_code).first()
 
     # De Form voor het aanpassen van het onderzoek.
@@ -85,7 +85,7 @@ def edit_study(study_code):
 @bp.route('/choose_model/<study_code>', methods=['GET', 'POST'])
 @login_required
 def choose_model(study_code):
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     models = [model for model in ResearchModel.query.filter_by(user_id=current_user.id)]
@@ -99,7 +99,7 @@ def choose_model(study_code):
 @bp.route('/create_new_model/<study_code>', methods=['GET', 'POST'])
 @login_required
 def create_new_model(study_code):
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     if study.researchmodel_id is None:
@@ -117,7 +117,10 @@ def create_new_model(study_code):
 @login_required
 def edit_model(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
+
     study = Study.query.filter_by(code=study_code).first()
 
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -132,7 +135,9 @@ def edit_model(study_code):
 @login_required
 def new_corevariable(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -147,7 +152,9 @@ def new_corevariable(study_code):
 @login_required
 def add_corevariable(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -163,7 +170,7 @@ def add_corevariable(study_code, corevariable_id):
 @login_required
 def create_new_corevariable(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     # De Form voor het aanmaken van een nieuwe kernvariabele.
@@ -194,7 +201,7 @@ def create_new_corevariable(study_code):
 @login_required
 def remove_corevariable(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -225,7 +232,7 @@ def remove_corevariable(study_code, corevariable_id):
 @login_required
 def new_relation(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     # De Form voor het aanmaken van een nieuwe relatie.
     study = Study.query.filter_by(code=study_code).first()
@@ -264,7 +271,7 @@ def new_relation(study_code):
 @login_required
 def remove_relation(study_code, id_relation):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     # Het verwijderen van de relevante relatie.
     Relation.query.filter_by(id=id_relation).delete()
@@ -282,7 +289,7 @@ def remove_relation(study_code, id_relation):
 @login_required
 def questionnaire(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -319,7 +326,7 @@ def questionnaire(study_code):
 @login_required
 def edit_scale(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -346,7 +353,7 @@ def edit_scale(study_code):
 @login_required
 def new_demographic(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
@@ -361,7 +368,7 @@ def new_demographic(study_code):
 @login_required
 def add_demographic(study_code, demographic_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -377,7 +384,7 @@ def add_demographic(study_code, demographic_id):
 @login_required
 def create_new_demographic(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -410,7 +417,7 @@ def create_new_demographic(study_code):
 @login_required
 def remove_demographic(study_code, demographic_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     demographic = Demographic.query.filter_by(id=demographic_id).first()
@@ -426,7 +433,7 @@ def remove_demographic(study_code, demographic_id):
 @login_required
 def new_question(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -442,7 +449,7 @@ def new_question(study_code, corevariable_id):
 @login_required
 def add_question(study_code, corevariable_id, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     question = Question.query.filter_by(id=question_id).first()
@@ -474,7 +481,7 @@ def add_question(study_code, corevariable_id, question_id):
 @login_required
 def create_new_question(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
@@ -514,7 +521,7 @@ def create_new_question(study_code, corevariable_id):
 @login_required
 def edit_question(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     question = Question.query.filter_by(id=question_id).first()
@@ -541,7 +548,7 @@ def edit_question(study_code, question_id):
 @login_required
 def remove_question(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     # Het verwijderen van de vraag uit de database.
     Question.query.filter_by(id=question_id).delete()
@@ -554,7 +561,7 @@ def remove_question(study_code, question_id):
 @login_required
 def switch_reversed_score(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage1(study_code)
 
     # De reversed_score aan- of uitzetten voor de vraag afhankelijk wat de huidige stand is.
     question = Question.query.filter_by(id=question_id).first()
@@ -612,7 +619,7 @@ def starting_study(study_code):
 @login_required
 def study_underway(name_study, study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage2(study_code)
     # De link naar de vragenlijst
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -626,7 +633,7 @@ def study_underway(name_study, study_code):
 @login_required
 def end_study(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage2(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     # Omzetting studie van stage_2 (het onderzoek is gaande) naar stage_3 (de data-analyse)
@@ -645,7 +652,7 @@ def end_study(study_code):
 @login_required
 def summary_results(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage3(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -661,7 +668,7 @@ def summary_results(study_code):
 @login_required
 def data_analysis(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage3(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -712,7 +719,7 @@ def data_analysis(study_code):
 @bp.route('/data_analysis/corevariable_analysis/<study_code>/<questiongroup_id>', methods=['GET', 'POST'])
 @login_required
 def corevariable_analysis(study_code, questiongroup_id):
-    security_and_studycheck(study_code)
+    security_and_studycheck_stage3(study_code)
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()

@@ -18,7 +18,6 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 import math
 import pandas as pd
-import numpy as np
 
 
 study_user = db.Table('study_user',
