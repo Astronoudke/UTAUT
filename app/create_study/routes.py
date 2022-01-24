@@ -35,6 +35,10 @@ def new_study():
     # Als de gebruiker aangeeft een nieuw onderzoek aan te willen maken
     if form.validate_on_submit():
         # Een nieuw onderzoek wordt opgezet.
+        # new_study is een "Study"-object (Study is een tabel binnen de database, zie "models.py"). De naam,
+        # beschrijving en relevante technologie van de studie worden gehaald uit de "form" die de gebruiker heeft
+        # ingeleverd op de pagina. De "data" stelt de antwoorden voor. Na het bepalen van "new_study" wordt deze
+        # toegevoegd (db.session.add) en opgeslagen in de database (db.session.commit).
         new_study = Study(name=form.name_of_study.data, description=form.description_of_study.data,
                           technology=form.technology_of_study.data)
         # Een unieke code wordt gegeven aan het onderzoek (gebruikmakend van UUID4).
@@ -44,7 +48,12 @@ def new_study():
         current_user.link(new_study)
         db.session.commit()
 
+        # "redirect(url_for)" verwijst de gebruiker naar een andere pagina in het geval dat de Form is gesubmitted.
         return redirect(url_for('create_study.choose_model', study_code=new_study.code))
+    # "render_template" toont de relevante HTML-pagina. "Title" is de titel van de pagina. De variabelen die erna worden
+    # gegeven is om ervoor te zorgen dat Jinja2 deze variabelen kan renderen binnen de HTML-pagina, in dit geval alleen
+    # "form". Deze zullen veel terugkomen. In dat geval zal te zien zijn dat deze variabelen terug te lezen zijn binnen
+    # de HTML-pagina.
     return render_template("create_study/new_study.html", title='New Study', form=form)
 
 
@@ -52,11 +61,19 @@ def new_study():
 @login_required
 def edit_study(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
+
+    # "Query" wordt gebruikt om objecten binnen de tabel (Study) te selecteren. filter_by is een manier
+    # om te filteren op welke objecten geselecteerd worden. In dit geval dient de "code" gelijk te zijn aan de code van
+    # de relevante studie. "first()" werkt net zoals de return-functie in Python; in dit geval wordt het eerste
+    # resultaat uit de query gereturned.
     study = Study.query.filter_by(code=study_code).first()
 
-    # De Form voor het aanpassen van het onderzoek.
-    form = EditStudyForm(study.name, study.description, study.technology)
+    # De Form voor het aanpassen van het onderzoek. Waarom de attributen van de studie binnen de Form gegeven worden is
+    # omdat deze als originele inputs aangegeven worden binnen de Form. Zie "create_study/forms.py".
+    form = EditStudyForm()
 
     # Als de gebruiker aangeeft de onderzoek te willen aanpassen met de gegeven gegevens.
     if form.validate_on_submit():
@@ -67,8 +84,7 @@ def edit_study(study_code):
         db.session.commit()
         flash('Your changes have been saved.')
         return redirect(url_for('create_study.edit_model', study_code=study.code))
-    # Als niks is ingegeven binnen de Form worden geen aanpassingen gemaakt (en dus gebruikgemaakt van de eigen
-    # onderzoeksgegevens.
+    # Voor "GET" worden de originele waarden van de studie gebruikt om aan te geven binnen de Form.
     elif request.method == 'GET':
         form.name_of_study.data = study.name
         form.description_of_study.data = study.description
@@ -85,11 +101,14 @@ def edit_study(study_code):
 @bp.route('/choose_model/<study_code>', methods=['GET', 'POST'])
 @login_required
 def choose_model(study_code):
-    security_and_studycheck_stage1(study_code)
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    # Alle modellen waarvan de "user_id" die van de huidige gebruiker is.
     models = [model for model in ResearchModel.query.filter_by(user_id=current_user.id)]
-    print(models)
     amount_of_models = len(models)
 
     return render_template("create_study/choose_model.html", title='Choose model', study=study, models=models,
@@ -99,7 +118,10 @@ def choose_model(study_code):
 @bp.route('/create_new_model/<study_code>', methods=['GET', 'POST'])
 @login_required
 def create_new_model(study_code):
-    security_and_studycheck_stage1(study_code)
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     if study.researchmodel_id is None:
@@ -122,8 +144,9 @@ def edit_model(study_code):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
-
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+    # "Linked_corevariables" zijn de kernvariabelen die horen bij het model. Deze functie is onderdeel van de
+    # "ResearchModel"-tabel.
     corevariables = [corevariable for corevariable in model.linked_corevariables]
     relations = [relation for relation in Relation.query.filter_by(model_id=model.id)]
 
@@ -245,6 +268,8 @@ def new_relation(study_code):
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
 
     form = CreateNewRelationForm()
+    # De "choices" zijn er voor de mogelijke keuzes die er zijn voor het kiezen van de "name_influencer" en
+    # "name_influenced". De gebruiker kan namelijk niet zelf iets invullen, maar moet uit een keuzeveld kiezen.
     form.name_influencer.choices = [(corevariable.id, corevariable.name) for corevariable in
                                     model.linked_corevariables]
     form.name_influenced.choices = [(corevariable.id, corevariable.name) for corevariable in
@@ -317,8 +342,7 @@ def questionnaire(study_code):
 
     questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
 
-    # Een dictionary met sublijsten van alle vragen per vragenlijstgroep/kernvariabele (questiongroups_questions)
-    # en de opzet ervan
+    # Een lijst met sublijsten van alle vragen van iedere kernvariabele.
     questions = []
     for questiongroup in questiongroups:
         questions.append(questiongroup.linked_questions())
@@ -346,15 +370,12 @@ def edit_scale(study_code):
     # De Form voor het aanpassen van het onderzoek.
     form = EditScaleForm(questionnaire.scale)
 
-    # Als de gebruiker aangeeft de onderzoek te willen aanpassen met de gegeven gegevens.
     if form.validate_on_submit():
         # De gegevens van de studie worden aangepast naar de ingegeven data binnen de Form.
         questionnaire.scale = form.scale_questionnaire.data
         db.session.commit()
         flash('Your changes have been saved.')
         return redirect(url_for('create_study.questionnaire', study_code=study.code))
-    # Als niks is ingegeven binnen de Form worden geen aanpassingen gemaakt (en dus gebruikgemaakt van de eigen
-    # onderzoeksgegevens.
     elif request.method == 'GET':
         form.scale_questionnaire.data = questionnaire.scale
 
@@ -458,20 +479,25 @@ def new_question(study_code, corevariable_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+    corevariables = [corevariable for corevariable in model.linked_corevariables]
     questiongroups = [questiongroup for questiongroup in
                       QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id)]
 
     return render_template("create_study/new_question.html", title="New question", study=study,
-                           corevariable=corevariable, questiongroups=questiongroups, corevariable_id=corevariable_id)
+                           corevariable=corevariable, questiongroups=questiongroups, corevariable_id=corevariable_id,
+                           corevariables=corevariables)
 
 
 @bp.route('/add_question/<study_code>/<corevariable_id>/<question_id>', methods=['GET', 'POST'])
 @login_required
 def add_question(study_code, corevariable_id, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     question = Question.query.filter_by(id=question_id).first()
@@ -503,7 +529,9 @@ def add_question(study_code, corevariable_id, question_id):
 @login_required
 def create_new_question(study_code, corevariable_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
@@ -529,7 +557,8 @@ def create_new_question(study_code, corevariable_id):
         new_question = Question(question=form.name_question.data,
                                 questiongroup_id=questiongroup.id,
                                 question_code=new_code,
-                                user_id=current_user.id)
+                                user_id=current_user.id,
+                                corevariable_id=corevariable.id)
         db.session.add(new_question)
         db.session.commit()
 
@@ -543,7 +572,9 @@ def create_new_question(study_code, corevariable_id):
 @login_required
 def edit_question(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     question = Question.query.filter_by(id=question_id).first()
@@ -570,7 +601,9 @@ def edit_question(study_code, question_id):
 @login_required
 def remove_question(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     # Het verwijderen van de vraag uit de database.
     Question.query.filter_by(id=question_id).delete()
@@ -583,7 +616,9 @@ def remove_question(study_code, question_id):
 @login_required
 def switch_reversed_score(study_code, question_id):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage1(study_code)
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
 
     # De reversed_score aan- of uitzetten voor de vraag afhankelijk wat de huidige stand is.
     question = Question.query.filter_by(id=question_id).first()
@@ -641,11 +676,14 @@ def starting_study(study_code):
 @login_required
 def study_underway(name_study, study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage2(study_code)
+    security_check = security_and_studycheck_stage2(study_code)
+    if security_check is not None:
+        return security_check
+
     # De link naar de vragenlijst
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
-    link = '127.0.0.1:5000/d/e/{}'.format(study.code)
+    link = '127.0.0.1:5000/intro_questionnaire/e/{}'.format(study.code)
 
     return render_template('create_study/study_underway.html', title="Underway: {}".format(name_study), study=study,
                            link=link, questionnaire=questionnaire)
@@ -655,7 +693,9 @@ def study_underway(name_study, study_code):
 @login_required
 def end_study(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage2(study_code)
+    security_check = security_and_studycheck_stage2(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     # Omzetting studie van stage_2 (het onderzoek is gaande) naar stage_3 (de data-analyse)
@@ -674,7 +714,9 @@ def end_study(study_code):
 @login_required
 def summary_results(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage3(study_code)
+    security_check = security_and_studycheck_stage3(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -690,7 +732,9 @@ def summary_results(study_code):
 @login_required
 def data_analysis(study_code):
     # Checken of gebruiker tot betrokken onderzoekers hoort
-    security_and_studycheck_stage3(study_code)
+    security_check = security_and_studycheck_stage3(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
@@ -741,7 +785,9 @@ def data_analysis(study_code):
 @bp.route('/data_analysis/corevariable_analysis/<study_code>/<questiongroup_id>', methods=['GET', 'POST'])
 @login_required
 def corevariable_analysis(study_code, questiongroup_id):
-    security_and_studycheck_stage3(study_code)
+    security_check = security_and_studycheck_stage3(study_code)
+    if security_check is not None:
+        return security_check
 
     study = Study.query.filter_by(code=study_code).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()

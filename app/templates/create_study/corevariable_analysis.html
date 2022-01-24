@@ -202,7 +202,6 @@
                         display: false,
                     }
                 },
-                maintainAspectRatio: false,
                 scales: {
                   x: {
                       barPercentage: 0.4
@@ -211,7 +210,6 @@
                     beginAtZero: true,
                     max: 1,
                     grid: {
-                      drawBorder: false,
                       color: function(context) {
                         if (context.tick.value == 0.5) {
                           return '#009900';
@@ -311,7 +309,6 @@
             document.getElementById('chart_ca_all'),
             config_ca_all
           );
-
 
 
       /* De Composite Reliability-fullscreengrafiek */
@@ -743,6 +740,7 @@
             document.getElementById('chart_vif'),
             config_vif
           );
+
 
       /* De Ladingen-kleinschalige grafiek */
           const labels_loadings = [

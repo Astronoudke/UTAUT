@@ -1,10 +1,8 @@
-import uuid
-from datetime import datetime
-from flask import render_template, flash, redirect, url_for, request, session
+from flask import render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_required
-from wtforms import RadioField
 from app import db
 from app.main import bp
+
 from app.main.forms import EditProfileForm, EmptyForm
 from app.models import User
 
@@ -35,7 +33,7 @@ def user(username):
 @login_required
 def edit_profile():
     # De Form voor het aanpassen van het profiel.
-    form = EditProfileForm(current_user.username)
+    form = EditProfileForm()
 
     # Als de gebruiker aangeeft aanpassingen te willen maken aan het profiel.
     if form.validate_on_submit():

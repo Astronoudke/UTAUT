@@ -18,7 +18,7 @@
                     <th scope="row"><a href="{{ url_for('create_study.add_corevariable', study_code=study.code, corevariable_id=corevariable.id) }}">
                         {{ corevariable.name }}</a></th>
                     <td>{{ corevariable.abbreviation }}</td>
-                    <td>{{ corevariable.return_creator() }}</td>
+                    <td>{{ corevariable.return_creator().username }}</td>
                 </tr>
             {% endfor %}
         </table>

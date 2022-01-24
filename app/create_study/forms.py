@@ -31,11 +31,6 @@ class EditStudyForm(FlaskForm):
                                       validators=[DataRequired(), Length(min=0, max=75)])
     submit = SubmitField('Edit study')
 
-    def __init__(self, original_name, original_description, original_technology, *args, **kwargs):
-        super(EditStudyForm, self).__init__(*args, **kwargs)
-        self.original_name = original_name
-        self.original_description = original_description
-        self.original_technology = original_technology
 
 
 class CreateNewCoreVariableForm(FlaskForm):

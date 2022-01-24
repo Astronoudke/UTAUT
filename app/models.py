@@ -137,7 +137,7 @@ class CoreVariable(db.Model):
         return '<Core variable {}>'.format(self.name)
 
     def return_creator(self):
-        user = User.query.filter_by(id=self.user_id).first().username
+        user = User.query.filter_by(id=self.user_id).first()
         return user
 
     def link(self, model):
@@ -151,6 +151,10 @@ class CoreVariable(db.Model):
     def is_linked(self, model):
         return model.linked_corevariables.filter(
             researchmodel_corevariable.c.corevariable_id == self.id).count() > 0
+
+    def linked_questions(self):
+        questions = [question for question in Question.query.filter_by(corevariable_id=self.id)]
+        return questions
 
 
 class Relation(db.Model):
@@ -203,6 +207,10 @@ class QuestionGroup(db.Model):
 
     def __repr__(self):
         return '<Question group {}>'.format(self.return_corevariable_name)
+
+    def return_corevariable(self):
+        corevariable = CoreVariable.query.filter_by(id=self.corevariable_id).first()
+        return corevariable
 
     def return_corevariable_name(self):
         corevariable_name = CoreVariable.query.filter_by(id=self.corevariable_id).first().name
@@ -380,7 +388,7 @@ class Demographic(db.Model):
         return '<Demographic {}>'.format(self.name)
 
     def return_creator(self):
-        user = User.query.filter_by(id=self.user_id).first().username
+        user = User.query.filter_by(id=self.user_id).first()
         return user
 
     def return_list_of_options(self):
@@ -442,17 +450,18 @@ class Question(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     questiongroup_id = db.Column(db.Integer, db.ForeignKey('question_group.id'))
+    corevariable_id = db.Column(db.Integer, db.ForeignKey('core_variable.id'))
 
     def __repr__(self):
         return '<Question {}>'.format(self.question)
 
     def return_creator(self):
-        user = User.query.filter_by(id=self.user_id).first().username
+        user = User.query.filter_by(id=self.user_id).first()
         return user
 
     def return_original_corevariable(self):
         questiongroup = QuestionGroup.query.filter_by(id=self.questiongroup_id).first()
-        return questiongroup.return_corevariable_name()
+        return questiongroup.return_corevariable()
 
     def return_average_question_answers(self):
         answers = [answer.score for answer in QuestionAnswer.query.filter_by(question_id=self.id)]

@@ -11,12 +11,6 @@ from app.models import User, Study, Case, Questionnaire, Demographic, Demographi
     QuestionGroup, Question, QuestionAnswer
 
 
-@bp.route('/clear_session/<study_code>', methods=['GET', 'POST'])
-def clear_session(study_code):
-    session.clear()
-    return redirect(url_for('questionnaire.intro_questionnaire', study_code=study_code))
-
-
 @bp.route('/invalid_session', methods=['GET', 'POST'])
 def invalid_session():
     return render_template("questionnaire/invalid_session.html", title='Invalid Session')

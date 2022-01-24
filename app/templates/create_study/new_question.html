@@ -12,16 +12,16 @@
             <th scope="col">Originally created for</th>
             <th scope="col">Creator</th>
         </tr>
-        {% for questiongroup in questiongroups %}
+        {% for corevariable in corevariables %}
             <tr>
-                <th scope="col">{{ questiongroup.return_corevariable_name() }}</th>
+                <th scope="col">{{ corevariable.name }}</th>
             </tr>
-            {% for question in questiongroup.linked_questions() %}
+            {% for question in corevariable.linked_questions() %}
                 <tr>
                     <th scope="row"><a href="{{ url_for('create_study.add_question', study_code=study.code,
                     corevariable_id=corevariable.id, question_id=question.id) }}">{{ question.question }}</a></th>
-                    <td>{{ question.return_original_corevariable() }}</td>
-                    <td>{{ question.return_creator() }}</td>
+                    <td>{{ question.return_original_corevariable().name }}</td>
+                    <td>{{ question.return_creator().username }}</td>
                 </tr>
             {% endfor %}
         {% endfor %}
