@@ -32,7 +32,6 @@ class EditStudyForm(FlaskForm):
     submit = SubmitField('Edit study')
 
 
-
 class CreateNewCoreVariableForm(FlaskForm):
     name_corevariable = StringField('Name of the core variable', validators=[DataRequired(), Length(min=0, max=50)])
     abbreviation_corevariable = StringField('The abbreviation of the core variable', validators=[DataRequired(),
@@ -58,10 +57,10 @@ class CreateNewDemographicForm(FlaskForm):
                                                render_kw=style_description)
     optionality_of_demographic = BooleanField('Is the demographic optional?')
     type_of_demographic = RadioField('The type of demographic',
-                                     choices=['open', 'multiplechoice', 'radio'],
+                                     choices=['open', 'radio'],
                                      validators=[DataRequired(), Length(min=0, max=75)])
     choices_of_demographic = StringField('The choices that go with the question (split by comma only, only for '
-                                         'multiplechoice or radio)')
+                                         'radio)')
     submit = SubmitField('Create demographic')
 
 

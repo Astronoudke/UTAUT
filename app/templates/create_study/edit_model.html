@@ -7,6 +7,7 @@
     <div class="title-box">
         <h1 class="title-header"> {{ study.name }}</h1>
     </div>
+    <p>The study needs at least four core variables. Each core variable needs to be used in at least one relation.</p>
     <!-- De optie om het onderzoek zelf aan te passen. -->
     <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
         Edit study

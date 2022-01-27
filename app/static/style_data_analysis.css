@@ -62,15 +62,3 @@ th, td {
 }
 
 tr:nth-child(even) {background-color: rgb(225,225,225);}
-
-.LoadingValue {
-  color: green;
-}
-
-.LoadingValue.red {
-  color: red;
-}
-
-.LoadingValue.green {
-  color: green;
-}

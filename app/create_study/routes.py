@@ -13,7 +13,7 @@ from app.create_study.forms import CreateNewStudyForm, EditStudyForm, CreateNewC
     CreateNewDemographicForm, CreateNewQuestionForm, EditQuestionForm, EditScaleForm
 from app.create_study.functions import setup_questiongroups, setup_structure_dataframe, cronbachs_alpha, composite_reliability, \
     average_variance_extracted, heterotrait_monotrait, htmt_matrix, outer_vif_values_dict, return_questionlist_and_answerlist, \
-    indexes_questiongroups_three, correlation_matrix
+    indexes_questiongroups_three, correlation_matrix, check_researchmodel, check_if_used_model
 from app.main.functions import security_and_studycheck_stage1, security_and_studycheck_stage2, security_and_studycheck_stage3
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
@@ -107,12 +107,40 @@ def choose_model(study_code):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+
+    if study.researchmodel_id:
+        # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+        check_for_existing_model = check_if_used_model(study)
+        if check_for_existing_model is not None:
+            return check_for_existing_model
+        else:
+            flash("You already have created a model for this study.")
+            redirect(url_for('create_study.edit_model', study_code=study.code))
+
     # Alle modellen waarvan de "user_id" die van de huidige gebruiker is.
     models = [model for model in ResearchModel.query.filter_by(user_id=current_user.id)]
     amount_of_models = len(models)
 
     return render_template("create_study/choose_model.html", title='Choose model', study=study, models=models,
                            amount_of_models=amount_of_models)
+
+
+@bp.route('/add_model/<study_code>/<model_id>', methods=['GET', 'POST'])
+@login_required
+def add_model(study_code, model_id):
+    # Checken of gebruiker tot betrokken onderzoekers hoort
+    security_check = security_and_studycheck_stage1(study_code)
+    if security_check is not None:
+        return security_check
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=model_id).first()
+    if study.researchmodel_id is None:
+        study.researchmodel_id = model.id
+        study.used_existing_model = True
+        db.session.commit()
+
+    return redirect(url_for('create_study.questionnaire', study_code=study_code))
 
 
 @bp.route('/create_new_model/<study_code>', methods=['GET', 'POST'])
@@ -145,6 +173,12 @@ def edit_model(study_code):
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     # "Linked_corevariables" zijn de kernvariabelen die horen bij het model. Deze functie is onderdeel van de
     # "ResearchModel"-tabel.
     corevariables = [corevariable for corevariable in model.linked_corevariables]
@@ -167,6 +201,11 @@ def new_corevariable(study_code):
     corevariables = [corevariable for corevariable in CoreVariable.query.filter_by(user_id=current_user.id)]
     amount_of_corevariables = len(corevariables)
 
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     return render_template("create_study/new_corevariable.html", title='New Core Variable', study=study, model=model,
                            corevariables=corevariables, amount_of_corevariables=amount_of_corevariables)
 
@@ -183,6 +222,11 @@ def add_corevariable(study_code, corevariable_id):
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
 
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     corevariable.link(model)
     db.session.commit()
 
@@ -198,6 +242,12 @@ def create_new_corevariable(study_code):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     # De Form voor het aanmaken van een nieuwe kernvariabele.
     form = CreateNewCoreVariableForm()
 
@@ -235,6 +285,11 @@ def remove_corevariable(study_code, corevariable_id):
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
 
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     # De kernvariabele uit het onderzoeksmodel halen en alle bijbehorende relaties verwijderen.
     corevariable.unlink(model)
     db.session.commit()
@@ -267,6 +322,11 @@ def new_relation(study_code):
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
 
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
+
     form = CreateNewRelationForm()
     # De "choices" zijn er voor de mogelijke keuzes die er zijn voor het kiezen van de "name_influencer" en
     # "name_influenced". De gebruiker kan namelijk niet zelf iets invullen, maar moet uit een keuzeveld kiezen.
@@ -283,6 +343,15 @@ def new_relation(study_code):
         # De ID van de beïnvloedde kernvariabele bepalen.
         id_influenced = [corevariable for corevariable in model.linked_corevariables if corevariable.id ==
                          int(form.name_influenced.data)][0].id
+
+        if id_influencer == id_influenced:
+            flash("The influencing variable is the same as the influenced variable. For the relation, use different"
+                  " core variables.")
+            return redirect(url_for('create_study.edit_model', study_code=study_code))
+
+        if Relation.query.filter_by(model_id=model.id, influencer_id=id_influenced, influenced_id=id_influencer).first():
+            flash("Mutual relations are not allowed within the model.")
+            return redirect(url_for('create_study.edit_model', study_code=study_code))
 
         if Relation.query.filter_by(model_id=model.id, influencer_id=id_influencer,
                                     influenced_id=id_influenced).first() is None:
@@ -305,6 +374,13 @@ def remove_relation(study_code, id_relation):
     security_check = security_and_studycheck_stage1(study_code)
     if security_check is not None:
         return security_check
+
+    study = Study.query.filter_by(code=study_code).first()
+
+    # Checken of er gebruikgemaakt wordt van een bestaand model (in dit geval kan het model niet aangepast worden).
+    check_for_existing_model = check_if_used_model(study)
+    if check_for_existing_model is not None:
+        return check_for_existing_model
 
     # Het verwijderen van de relevante relatie.
     Relation.query.filter_by(id=id_relation).delete()
@@ -330,6 +406,11 @@ def questionnaire(study_code):
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     setup_questiongroups(study)
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # Voor het geval nieuwe kernvariabelen zijn toegevoegd aan het onderzoeksmodel nieuwe vragenlijstgroepen aanmaken.
     for corevariable in model.linked_corevariables:
@@ -365,7 +446,13 @@ def edit_scale(study_code):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # De Form voor het aanpassen van het onderzoek.
     form = EditScaleForm(questionnaire.scale)
@@ -392,6 +479,12 @@ def new_demographic(study_code):
 
     study = Study.query.filter_by(code=study_code).first()
     model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
+
     demographics = [demographic for demographic in Demographic.query.filter_by(user_id=current_user.id)]
     amount_of_demographics = len(demographics)
 
@@ -408,8 +501,14 @@ def add_demographic(study_code, demographic_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     demographic = Demographic.query.filter_by(id=demographic_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     demographic.link(questionnaire)
     db.session.commit()
@@ -426,7 +525,13 @@ def create_new_demographic(study_code):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # De Form voor het aanmaken van een nieuwe demografiek.
     form = CreateNewDemographicForm()
@@ -461,8 +566,14 @@ def remove_demographic(study_code, demographic_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     demographic = Demographic.query.filter_by(id=demographic_id).first()
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     demographic.unlink(questionnaire)
     db.session.commit()
@@ -486,6 +597,11 @@ def new_question(study_code, corevariable_id):
     questiongroups = [questiongroup for questiongroup in
                       QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id)]
 
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
+
     return render_template("create_study/new_question.html", title="New question", study=study,
                            corevariable=corevariable, questiongroups=questiongroups, corevariable_id=corevariable_id,
                            corevariables=corevariables)
@@ -500,11 +616,16 @@ def add_question(study_code, corevariable_id, question_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     question = Question.query.filter_by(id=question_id).first()
-
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     questiongroup = QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id,
                                                   corevariable_id=corevariable_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # De bijbehorende kernvariabele verkrijgen voor het bepalen van de afkorting van de correcte variabele.
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
@@ -514,6 +635,10 @@ def add_question(study_code, corevariable_id, question_id):
     new_code = abbreviation_corevariable + str(len([question for question in
                                                     Question.query.filter_by(
                                                         questiongroup_id=questiongroup.id)]) + 1)
+
+    if Question.query.filter_by(question=question.question, questiongroup_id=questiongroup.id).first():
+        flash("This question already exists within the core variable.")
+        return redirect(url_for('create_study.questionnaire', study_code=study_code))
 
     # Het aanmaken van een nieuwe vraag in de database.
     new_question = Question(question=question.question,
@@ -534,7 +659,14 @@ def create_new_question(study_code, corevariable_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
+
     # De Form voor het aanmaken van een nieuwe vraag.
     form = CreateNewQuestionForm()
 
@@ -543,6 +675,10 @@ def create_new_question(study_code, corevariable_id):
         questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
         questiongroup = QuestionGroup.query.filter_by(questionnaire_id=questionnaire.id,
                                                       corevariable_id=corevariable_id).first()
+
+        if Question.query.filter_by(question=form.name_question.data, questiongroup_id=questiongroup.id).first():
+            flash("This question already exists within the core variable.")
+            return redirect(url_for('create_study.questionnaire', study_code=study_code))
 
         # De bijbehorende kernvariabele verkrijgen voor het bepalen van de afkorting van de correcte variabele.
         corevariable = CoreVariable.query.filter_by(id=corevariable_id).first()
@@ -577,7 +713,13 @@ def edit_question(study_code, question_id):
         return security_check
 
     study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
     question = Question.query.filter_by(id=question_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # De Form voor het aanpassen van het onderzoek.
     form = EditQuestionForm(question.question)
@@ -605,6 +747,14 @@ def remove_question(study_code, question_id):
     if security_check is not None:
         return security_check
 
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
+
     # Het verwijderen van de vraag uit de database.
     Question.query.filter_by(id=question_id).delete()
     db.session.commit()
@@ -619,6 +769,14 @@ def switch_reversed_score(study_code, question_id):
     security_check = security_and_studycheck_stage1(study_code)
     if security_check is not None:
         return security_check
+
+    study = Study.query.filter_by(code=study_code).first()
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # De reversed_score aan- of uitzetten voor de vraag afhankelijk wat de huidige stand is.
     question = Question.query.filter_by(id=question_id).first()
@@ -651,13 +809,21 @@ def starting_study(study_code):
 
     questionnaire = Questionnaire.query.filter_by(study_id=study.id).first()
     questiongroups = [questiongroup for questiongroup in questionnaire.linked_questiongroups]
+    model = ResearchModel.query.filter_by(id=study.researchmodel_id).first()
+
+    # Checken of het onderzoeksmodel goed is ingevuld, anders vereisen dat het model aangepast dient te worden.
+    researchmodel_check = check_researchmodel(study, model)
+    if researchmodel_check is not None:
+        return researchmodel_check
 
     # Bepalen of alle vragenlijstgroepen tenminste één vraag hebben en er een schaal is gegeven voor de vragenlijst.
     # Zo niet, de Flash geven en terugkeren.
+    amount_of_questiongroups = len(questiongroups)
     for questiongroup in questiongroups:
-        if Question.query.filter_by(questiongroup_id=questiongroup.id).count() == 0:
-            flash('One or more of the core variables does not have questions yet. Please add at least one question to '
-                  'each core variable.')
+        amount_of_questions = Question.query.filter_by(questiongroup_id=questiongroup.id).count()
+        if amount_of_questions < 3 or amount_of_questions > 5:
+            flash('The amount of questions for all core variables must be between 3 and 5. Make sure this is the case'
+                  'for each core variable.')
             return redirect(url_for('create_study.questionnaire', study_code=study.code))
 
     if questionnaire.scale is None or 4 > questionnaire.scale or questionnaire.scale > 10:

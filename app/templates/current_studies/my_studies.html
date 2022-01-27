@@ -14,8 +14,18 @@
             </tr>
             {% for study in studies %}
                 <tr>
-                    <th scope="row"><a href="{{ url_for('create_study.edit_model', study_code=study.code) }}">
-                        {{ study.name }}</a></th>
+                    {% if study.researchmodel_id %}
+                        {% if study.used_existing_model %}
+                            <th scope="row"><a href="{{ url_for('create_study.edit_model', study_code=study.code) }}">
+                                {{ study.name }}</a></th>
+                        {% else %}
+                            <th scope="row"><a href="{{ url_for('create_study.questionnaire', study_code=study.code) }}">
+                                {{ study.name }}</a></th>
+                        {% endif %}
+                    {% else %}
+                        <th scope="row"><a href="{{ url_for('create_study.choose_model', study_code=study.code) }}">
+                                {{ study.name }}</a></th>
+                    {% endif %}
                     {% if study.stage_1 %}
                         <td>N/A</td>
                     {% else %}

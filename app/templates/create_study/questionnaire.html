@@ -7,6 +7,8 @@
     <div class="title-box">
         <h1 class="title-header"> {{ study.name }}</h1>
     </div>
+    <p>Each core variable must have between three and five questions. A scale must be set for the questionnaire (between
+     four and ten).</p>
     <!-- De knop om aanpassingen te maken aan de studie. -->
     <button type="button" onclick="window.location.href='{{ url_for('create_study.edit_study', study_code=study.code) }}';">
         Edit Study

@@ -1,4 +1,4 @@
-from app.models import ResearchModel, Questionnaire, QuestionGroup, CoreVariable, Relation, Question, QuestionAnswer
+from app.models import  Study, ResearchModel, Questionnaire, QuestionGroup, CoreVariable, Relation, Question, QuestionAnswer
 from app import db
 import plspm.config as c
 from plspm.plspm import Plspm
@@ -7,6 +7,30 @@ from statsmodels.tools.tools import add_constant
 import math
 import pandas as pd
 import numpy as np
+from flask import render_template, flash, redirect, url_for, request
+from flask_login import current_user, login_required
+
+
+def check_if_used_model(study):
+    study = Study.query.filter_by(id=study.id).first()
+    if study.used_existing_model:
+        flash('You have used a pre-existing model for this study. You cannot change the model.')
+        return redirect(url_for('create_study.questionnaire', study_code=study.code))
+
+
+def check_researchmodel(study, model):
+    corevariables = [corevariable for corevariable in model.linked_corevariables]
+    if len(corevariables) < 4:
+        flash('The research model needs four or more corevariables. Please add more core variables to your model.')
+        return redirect(url_for('create_study.edit_model', study_code=study.code))
+
+    for corevariable in corevariables:
+        amount_of_relations = len([relation for relation in corevariable.linked_relations_from(model)] +
+                                  [relation for relation in corevariable.linked_relations_to(model)])
+        if amount_of_relations == 0:
+            flash('The research model contains core variables which are not linked to any other core variables yet.'
+                  'Make sure at least one relation is created for each core variable.')
+            return redirect(url_for('create_study.edit_model', study_code=study.code))
 
 
 def setup_questiongroups(study):

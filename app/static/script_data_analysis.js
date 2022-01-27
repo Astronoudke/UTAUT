@@ -11,13 +11,3 @@ function openPage(pageName,elmnt) {
   document.getElementById(pageName).style.display = "block";
   elmnt.style.backgroundColor = rgb(200,200,200);
 }
-
-var els = document.getElementsByClassName('LoadingValue');
-for (var i = 0; i < els.length; i++) {
-  var cell = els[i];
-  if (cell.textContent < 0.7) {
-    cell.classList.add('red');
-  } else {
-    cell.classList.add('green');
-  }
-}

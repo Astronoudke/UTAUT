@@ -25,9 +25,24 @@
                   <td style="font-weight: bold;"><a href="{{ url_for('create_study.corevariable_analysis',
                   study_code=study.code, questiongroup_id=questiongroup.id) }}">
                         {{ questiongroup.return_corevariable_name() }}</a></td>
-                  <td>{{ questiongroup.return_ave(model, df, config, scheme) }}</td>
-                  <td>{{ questiongroup.return_cronbachs_alpha(model, df) }}</td>
-                  <td>{{ questiongroup.return_composite_reliability(model, df, config, scheme) }}</td>
+                  {% set ave = questiongroup.return_ave(model, df, config, scheme) %}
+                  {% if ave < 0.5 %}
+                    <td style="color: red;">{{ ave }}</td>
+                  {% else %}
+                    <td style="color: green;">{{ ave }}</td>
+                  {% endif %}
+                  {% set ca = questiongroup.return_cronbachs_alpha(model, df) %}
+                  {% if ca < 0.7 %}
+                    <td style="color: red;">{{ ca }}</td>
+                  {% else %}
+                    <td style="color: green;">{{ ca }}</td>
+                  {% endif %}
+                  {% set cr = questiongroup.return_composite_reliability(model, df, config, scheme) %}
+                  {% if cr < 0.7 %}
+                    <td style="color: red;">{{ cr }}</td>
+                  {% else %}
+                    <td style="color: green;">{{ cr }}</td>
+                  {% endif %}
               </tr>
             {% endfor %}
           </table>
@@ -43,7 +58,12 @@
               {% for question in questiongroup.linked_questions() %}
                 <tr>
                     <td style="font-weight: bold;">{{ question.question_code }}</td>
-                    <td class="LoadingValue">{{ question.return_loading(loadings_dct) }}</td>
+                    {% set loading = question.return_loading(loadings_dct) %}
+                    {% if loading < 0.5 %}
+                        <td style="color: red;">{{ loading }}</td>
+                    {% else %}
+                        <td style="color: green;">{{ loading }}</td>
+                    {% endif %}
                 </tr>
               {% endfor %}
             {% endfor %}
@@ -52,7 +72,7 @@
     </div>
 
     <div id="DiscriminantValidity" class="tabcontent">
-      <h3>Discriminant Validity</h3>
+      <h3>Heterotrait-Monotrait Ratio</h3>
       <div style="overflow-x: auto; overflow-y: auto; height: 80%;">
           <table>
             <tr>
@@ -68,9 +88,13 @@
                   {% for i in range(amount_of_variables) %}
                     {% set value = dictionary[corevariable][i] | float() %}
                     {% if value != 0 %}
-                        <td style="color:black;">{{ value }}</td>
+                        {% if value < 0.85 %}
+                            <td style="color: green;">{{ value }}</td>
+                        {% else %}
+                            <td style="color: red;">{{ value }}</td>
+                        {% endif %}
                     {% else %}
-                        <td style="color:black;"></td>
+                        <td></td>
                     {% endif %}
                   {% endfor %}
               </tr>
@@ -80,7 +104,7 @@
     </div>
 
     <div id="MultiCollinearity" class="tabcontent">
-      <h3>Multi Collinearity</h3>
+      <h3>Outer VIF-values</h3>
       <div style="overflow-x: auto; overflow-y: auto; height: 80%;">
           <table>
             <tr>
@@ -91,7 +115,12 @@
               {% for question in questiongroup.linked_questions() %}
                 <tr>
                     <td style="font-weight: bold;">{{ question.question_code }}</td>
-                    <td class="LoadingValue">{{ question.return_vif(outer_vif_dct) }}</td>
+                    {% set vif = question.return_vif(outer_vif_dct) %}
+                    {% if vif >= 10 %}
+                        <td style="color: red;">{{ vif }}</td>
+                    {% else %}
+                        <td style="color: green;">{{ vif }}</td>
+                    {% endif %}
                 </tr>
               {% endfor %}
             {% endfor %}

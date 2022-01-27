@@ -97,6 +97,7 @@ class Study(db.Model):
     stage_2 = db.Column(db.Boolean, default=False)
     stage_3 = db.Column(db.Boolean, default=False)
     stage_completed = db.Column(db.Boolean, default=False)
+    used_existing_model = db.Column(db.Boolean, default=False)
 
     researchmodel_id = db.Column(db.Integer, db.ForeignKey('research_model.id'))
     linked_users = db.relationship('User', secondary=study_user, backref=db.backref('researchers'), lazy='dynamic')
@@ -123,6 +124,14 @@ class ResearchModel(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     linked_corevariables = db.relationship('CoreVariable', secondary=researchmodel_corevariable,
                                            backref=db.backref('corevariables'), lazy='dynamic')
+
+    def linked_relations(self):
+        relations = []
+        for relation in Relation.query.filter_by(model_id=self.id):
+            influencer = CoreVariable.query.filter_by(id=relation.influencer_id).first()
+            influenced = CoreVariable.query.filter_by(id=relation.influenced_id).first()
+            relations.append('{} to {}'.format(influencer.name, influenced.name))
+        return relations
 
 
 class CoreVariable(db.Model):
@@ -155,6 +164,14 @@ class CoreVariable(db.Model):
     def linked_questions(self):
         questions = [question for question in Question.query.filter_by(corevariable_id=self.id)]
         return questions
+
+    def linked_relations_from(self, model):
+        relations_from = [relation for relation in Relation.query.filter_by(model_id=model.id, influencer_id=self.id)]
+        return relations_from
+
+    def linked_relations_to(self, model):
+        relations_to = [relation for relation in Relation.query.filter_by(model_id=model.id, influenced_id=self.id)]
+        return relations_to
 
 
 class Relation(db.Model):
@@ -404,14 +421,12 @@ class Demographic(db.Model):
         elif self.questiontype == "multiplechoice":
             if self.optional:
                 choices = self.return_list_of_options()
-                choices.append("No Answer")
                 return SelectMultipleField(u'{}'.format(self.name), choices=choices)
             required_name = self.name + '*'
             return SelectMultipleField(u'{}'.format(required_name), choices=self.return_list_of_options())
         elif self.questiontype == "radio":
             if self.optional:
                 choices = self.return_list_of_options()
-                choices.append("No Answer")
                 return RadioField(u'{}'.format(self.name), choices=choices)
             required_name = self.name + '*'
             return RadioField(u'{}'.format(required_name), choices=self.return_list_of_options())

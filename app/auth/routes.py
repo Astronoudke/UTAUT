@@ -3,8 +3,11 @@ from flask_login import login_user, logout_user, current_user
 from app import db
 from app.auth import bp
 
+import os
+import smtplib
+
 from werkzeug.urls import url_parse
-from app.auth.email import send_password_reset_email
+from app.auth.email import send_password_reset_email, send_registration_mail
 from app.auth.forms import LoginForm, RegistrationForm, \
     ResetPasswordRequestForm, ResetPasswordForm
 from app.models import User
@@ -54,6 +57,11 @@ def register():
         db.session.add(user)
         db.session.commit()
         flash('Congratulations, you are now a registered user!')
+
+        # Een email verzenden met de bevestiging.
+        username = request.form.get("username")
+        email = request.form.get('email')
+        send_registration_mail(username, email)
         return redirect(url_for('auth.login'))
     return render_template('auth/register.html', title='Register', form=form)
 
